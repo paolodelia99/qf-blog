@@ -1,0 +1,18 @@
+---
+title: "About Me"
+image: me.png
+about:
+  template: jolla
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: https://linkedin.com
+    - icon: github
+      text: Github
+      href: https://github.com/paolodelia99
+
+---
+
+I am Paolo D'Elia, a young professional working in the finance industry with a strong background in computer science and a passion for quantitative finance. I hold a Master’s degree in Computer Science from the University of Copenhagen, where I focused on probability theory, continuous-time finance, and machine learning applications in hedging strategies. My academic path has always been driven by the intersection of computing, mathematics, and financial markets.
+
+Professionally, I have gained experience at Nordea Markets within the Quantitative Research team as a DevOps Engineer and currently work at Intesa Sanpaolo in the Proprietary Trading division as a Software Engineer. During my free time I contribute directly to QuantLib, the leading open-source C++ library in quantitative finance fixing issues and implementing new functionalities. I enjoy solving complex problems at the crossroads of software engineering and financial modeling, and I am eager to continue building innovative solutions that support trading, risk management, and research in modern finance.
