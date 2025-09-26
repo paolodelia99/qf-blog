@@ -3,6 +3,6 @@ venv
 *_files
 .ipynb_checkpoints
 _site
-.quarto
+.quarto/*
 /.quarto/
 **/*.quarto_ipynb
