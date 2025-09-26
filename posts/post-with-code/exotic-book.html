@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2027-03-09">
+
+<title>Hedging a book of exotic options – blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dc55a5b9e770e841cd82e46aadbfb9b0.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-5cacb9f959d55cb9ede5f6b611812ffb.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About Me</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/paolodelia99"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/paolo-d-elia/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Hedging a book of exotic options</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">Quantitative finance</div>
+                <div class="quarto-category">Hedging</div>
+                <div class="quarto-category">Exotic options</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">March 9, 2027</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<p>In this notebook, we take on the role of a trader working on an investment bank’s exotic options desk, focusing on FX derivatives. We will explore how such traders hedge their books and how the portfolio’s value and Greek exposures change as the underlying market parameters evolve. To keep things simple, we assume the underlying follows a geometric Brownian motion, with flat term structures for both the volatility surface and the domestic and foreign interest rates. This places us in a Black-Scholes framework (specifically the BS-extended model for FX options, the Garman-Kohlhagen model), described by the following dynamics under the risk-neutral measure:</p>
+<p><span class="math display">\[
+\begin{align*}
+dS_t &amp;= (r_d - r_f) S_t \, dt + \sigma S_t \, dW_t^d, \\
+dB^d_t &amp;= r_d B^d_t\, dt, \\
+dB^f_t &amp;= r_f B^f_t\, dt
+\end{align*}
+\]</span></p>
+<p>The investments banks are said to be on the “sell-side”, which basically means that they facilitate transactions between institutions, and provide access to financial markets. In our case we are manifacturing exotics options for our clients, who are seeking market opportunities. This leaves the trader with a significant exposition, as the bank take the opposite side of client trades. To manage the risk and ensure the bank meet its obligations when options are exercised, the trader must hedge against market movements.</p>
+<p>The hedging of exotics does not only involves hedging first order greeks (the <span class="math inline">\(\Delta\)</span> and the <span class="math inline">\(\mathcal{V}\)</span>), but its involves hedging high order greeks like <span class="math inline">\(\Gamma\)</span>, <span class="math inline">\(Vanna\)</span> (DvolDspot) and <span class="math inline">\(Volga\)</span> (DvegaDvol). Another completixity when hedging exotics option, especially when dealing with binary or barriers, pin risks needs to be taken into account when the barrier is hit.</p>
+<p>The library we use for option pricing is <code>QuantLib</code>, the largest open-source quantitative finance library available. <code>QuantLib</code> offers a comprehensive suite of tools for modeling, pricing, and risk management of financial derivatives. Its active community and extensive documentation make it a popular choice among both practitioners and researchers in the field.</p>
+<section id="market-data" class="level2">
+<h2 class="anchored" data-anchor-id="market-data">Market Data</h2>
+<p>Let’s assume that we are an USD based desk and we are dealing with EURUSD exotics. The initial market data at time <span class="math inline">\(t = 0\)</span> is the following</p>
+<p><span class="math display">\[
+\begin{align*}
+    S_0 &amp;= 1.18 \\
+    Date(Today) &amp;= 16/09/2025 \\
+    T &amp;= 0.5 \text{ (time to expiration in years)} \\
+    r_d &amp;= 0.045 \\
+    r_f &amp;= 0.02 \\
+    \sigma &amp;= 0.13 \\
+\end{align*}
+\]</span></p>
+<div id="2557c9e5" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>EUR_USD <span class="op">=</span> <span class="fl">1.18</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>spot_quote <span class="op">=</span> ql.SimpleQuote(EUR_USD)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>today <span class="op">=</span> ql.Date(<span class="dv">16</span>, ql.September, <span class="dv">2025</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>r_d <span class="op">=</span> <span class="fl">0.045</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>r_f <span class="op">=</span> <span class="fl">0.02</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>vol_quote <span class="op">=</span> ql.SimpleQuote(<span class="fl">0.13</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>spot_handle <span class="op">=</span> ql.QuoteHandle(spot_quote)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>vol_handle <span class="op">=</span> ql.QuoteHandle(vol_quote)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>dc <span class="op">=</span> ql.Actual365Fixed()</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>calendar <span class="op">=</span> ql.JointCalendar(ql.Italy(), ql.UnitedStates(ql.UnitedStates.NYSE))</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>expiration_date <span class="op">=</span> today <span class="op">+</span> ql.Period(<span class="dv">6</span>, ql.Months)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>expiration_time <span class="op">=</span> dc.yearFraction(today, expiration_date)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>domestic_rf_handle <span class="op">=</span> ql.YieldTermStructureHandle(ql.FlatForward(today, r_d, dc))</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>foreign_rf_handle <span class="op">=</span> ql.YieldTermStructureHandle(ql.FlatForward(today, r_f, dc))</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>black_vol <span class="op">=</span> ql.BlackConstantVol(today, ql.NullCalendar(), vol_handle, dc)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>vol_ts_handle <span class="op">=</span> ql.BlackVolTermStructureHandle(black_vol)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Setting the global evaluation date</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>ql.Settings.instance().evaluationDate <span class="op">=</span> today</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="b3ed7f4e" class="cell" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>eur_dates <span class="op">=</span> [ql.Date(<span class="dv">27</span>, ql.August, <span class="dv">2025</span>), ql.Date(<span class="dv">27</span>, ql.August, <span class="dv">2026</span>), ql.Date(<span class="dv">27</span>, ql.August, <span class="dv">2027</span>)]</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>eur_dfs <span class="op">=</span> [<span class="fl">1.0</span>, <span class="fl">0.98</span>, <span class="fl">0.95</span>]</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>eur_curve <span class="op">=</span> ql.DiscountCurve(eur_dates, eur_dfs, dc)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>eur_curve.enableExtrapolation()</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>usd_dates <span class="op">=</span> [ql.Date(<span class="dv">27</span>, ql.August, <span class="dv">2025</span>), ql.Date(<span class="dv">27</span>, ql.August, <span class="dv">2026</span>), ql.Date(<span class="dv">27</span>, ql.August, <span class="dv">2027</span>)]</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>usd_dfs <span class="op">=</span> [<span class="fl">1.0</span>, <span class="fl">0.985</span>, <span class="fl">0.96</span>]</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>usd_curve <span class="op">=</span> ql.DiscountCurve(usd_dates, usd_dfs, dc)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>usd_curve.enableExtrapolation()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The forex option market has a particular way of quoting options, the strike prices are quoted in terms of the Delta of the option: this means that before closing the deal, the strike level is not determined yet in absolute terms. Once the deal is closed, given the level of FX spot rate and the IV agreed upon, the strike will be set at a level yielding the BS Delta the two counterparties were dealing. This way of quoting is smart: it allows us not to worry about small movements of the underlying during the bargaining process, because the absolute strike will be defined only after the agreement on the price, so that the trader is sure to trade an option with given features in terms of exposures both to the underlying asset and to the implied volatility.</p>
+<p>The most liquid FX optios are usually the 25-<span class="math inline">\(\Delta\)</span> calls and put and the ATM calls and puts, thus those are going to be our basic hedging instruments and the strikes that we are going to refer to for the exotic in our book.</p>
+<p>Here is an example on how FX volatility are quoted:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;"><span class="math inline">\(10\Delta p\)</span></th>
+<th style="text-align: left;"><span class="math inline">\(25\Delta p\)</span></th>
+<th style="text-align: left;"><span class="math inline">\(35\Delta p\)</span></th>
+<th style="text-align: left;">ATM</th>
+<th style="text-align: left;"><span class="math inline">\(35\Delta c\)</span></th>
+<th style="text-align: left;"><span class="math inline">\(25\Delta c\)</span></th>
+<th style="text-align: left;"><span class="math inline">\(10\Delta c\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>1W</strong></td>
+<td style="text-align: left;">11.96%</td>
+<td style="text-align: left;">11.69%</td>
+<td style="text-align: left;">11.67%</td>
+<td style="text-align: left;">11.75%</td>
+<td style="text-align: left;">11.94%</td>
+<td style="text-align: left;">12.19%</td>
+<td style="text-align: left;">12.93%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>2W</strong></td>
+<td style="text-align: left;">11.81%</td>
+<td style="text-align: left;">11.54%</td>
+<td style="text-align: left;">11.52%</td>
+<td style="text-align: left;">11.60%</td>
+<td style="text-align: left;">11.79%</td>
+<td style="text-align: left;">12.04%</td>
+<td style="text-align: left;">12.78%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>1M</strong></td>
+<td style="text-align: left;">11.60%</td>
+<td style="text-align: left;">11.39%</td>
+<td style="text-align: left;">11.39%</td>
+<td style="text-align: left;">11.50%</td>
+<td style="text-align: left;">11.72%</td>
+<td style="text-align: left;">11.99%</td>
+<td style="text-align: left;">12.77%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>2M</strong></td>
+<td style="text-align: left;">11.43%</td>
+<td style="text-align: left;">11.16%</td>
+<td style="text-align: left;">11.15%</td>
+<td style="text-align: left;">11.25%</td>
+<td style="text-align: left;">11.48%</td>
+<td style="text-align: left;">11.76%</td>
+<td style="text-align: left;">12.60%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>3M</strong></td>
+<td style="text-align: left;">11.22%</td>
+<td style="text-align: left;">10.92%</td>
+<td style="text-align: left;">10.90%</td>
+<td style="text-align: left;">11.00%</td>
+<td style="text-align: left;">11.23%</td>
+<td style="text-align: left;">11.52%</td>
+<td style="text-align: left;">12.39%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>6M</strong></td>
+<td style="text-align: left;">11.12%</td>
+<td style="text-align: left;">10.78%</td>
+<td style="text-align: left;">10.76%</td>
+<td style="text-align: left;">10.87%</td>
+<td style="text-align: left;">11.12%</td>
+<td style="text-align: left;">11.43%</td>
+<td style="text-align: left;">12.39%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>9M</strong></td>
+<td style="text-align: left;">11.04%</td>
+<td style="text-align: left;">10.72%</td>
+<td style="text-align: left;">10.71%</td>
+<td style="text-align: left;">10.83%</td>
+<td style="text-align: left;">11.09%</td>
+<td style="text-align: left;">11.41%</td>
+<td style="text-align: left;">12.39%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>1Y</strong></td>
+<td style="text-align: left;">11.00%</td>
+<td style="text-align: left;">10.69%</td>
+<td style="text-align: left;">10.68%</td>
+<td style="text-align: left;">10.80%</td>
+<td style="text-align: left;">11.06%</td>
+<td style="text-align: left;">11.39%</td>
+<td style="text-align: left;">12.38%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>2Y</strong></td>
+<td style="text-align: left;">11.02%</td>
+<td style="text-align: left;">10.63%</td>
+<td style="text-align: left;">10.60%</td>
+<td style="text-align: left;">10.70%</td>
+<td style="text-align: left;">10.94%</td>
+<td style="text-align: left;">11.28%</td>
+<td style="text-align: left;">12.34%</td>
+</tr>
+</tbody>
+</table>
+<p>To get the strike from the Delta-Vol quote QuantLib comes in handy with a <code>BlackDeltaCalculator</code> that from a given delta (and option type, discount factor, spot value, and delta-vol quote value) it returns the strike associated with it.</p>
+<div id="0a5a4f4f" class="cell" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>call_barrier_factory <span class="op">=</span> FxBarrierOptionFactory(spot_handle, ql.Option.Call)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>put_barrier_factory <span class="op">=</span> FxBarrierOptionFactory(spot_handle, ql.Option.Put)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>put_vanilla_factory <span class="op">=</span> FxVanillaOptionFactory(spot_handle, expiration_date, ql.Option.Put)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>call_vanilla_factory <span class="op">=</span> FxVanillaOptionFactory(spot_handle, expiration_date, ql.Option.Call)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>delta_call_calc <span class="op">=</span> ql.BlackDeltaCalculator(</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    ql.Option.Call, </span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    ql.DeltaVolQuote.Spot, </span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    EUR_USD, </span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    eur_curve.discount(expiration_time), </span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    usd_curve.discount(expiration_time), </span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    np.sqrt(black_vol.blackVariance(expiration_time, EUR_USD)))</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>delta_put_calc <span class="op">=</span> ql.BlackDeltaCalculator(</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    ql.Option.Put, </span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    ql.DeltaVolQuote.Spot, </span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    EUR_USD, </span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    eur_curve.discount(expiration_time), </span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    usd_curve.discount(expiration_time), </span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    np.sqrt(black_vol.blackVariance(expiration_time, EUR_USD)))</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the strikes equivalent for the 0.25 delta for call and put options</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>d25_call_strike <span class="op">=</span> delta_call_calc.strikeFromDelta(<span class="fl">0.25</span>)</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>d25_put_strike <span class="op">=</span> delta_put_calc.strikeFromDelta(<span class="op">-</span><span class="fl">0.25</span>)</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>atm_strike <span class="op">=</span> delta_call_calc.atmStrike(ql.DeltaVolQuote.AtmDeltaNeutral)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The model that extends the Black-Scholes model when dealing with FX options is the Garman-Kohlhagen model, whose dynamics have been defined above. Thus we need to create an instance of the Garman-Kohlhagen process in order to price FX options.</p>
+<p>For the sake of simplicity we assume that all the options on the book have the same expiration, and again since we are under the Garman-Kohlhagen model the vol curve is flat, thus the vol across the different strikes is the same (unrealistic assumption). Here’s how the trader book is composed of:</p>
+<p>1st Barrier</p>
+<p><span class="math display">\[
+\begin{align*}
+    \text{Option type} &amp;= \text{Call} \\
+    \text{Notional} &amp;= \$1000000 \\
+    \text{Barrier} &amp;= 1.30 \\
+    \text{Strike} &amp;= 25\Delta c \\
+    \text{Barrier Type} &amp;= \text{Up and Out}
+\end{align*}
+\]</span></p>
+<div id="c96a95dd" class="cell" data-execution_count="9">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Barrier 1</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>notional <span class="op">=</span> <span class="dv">1_000_000</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>barrier <span class="op">=</span> <span class="fl">1.30</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>barrier_type <span class="op">=</span> ql.Barrier.UpOut</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>exercise <span class="op">=</span> ql.EuropeanExercise(expiration_date)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>barrier_25d_130b <span class="op">=</span> call_barrier_factory.get_option(d25_call_strike, exercise, barrier, barrier_type)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>barrier_1 <span class="op">=</span> BarrierPosition(barrier_25d_130b, notional, NullInstrument())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>2nd Barrier</p>
+<p><span class="math display">\[
+\begin{align*}
+    \text{Option type} &amp;= \text{Call} \\
+    \text{Notional} &amp;= \$2000000 \\
+    \text{Barrier} &amp;= 1.08 \\
+    \text{Strike} &amp;= 25\Delta c \\
+    \text{Barrier Type} &amp;= \text{Down and Out}
+\end{align*}
+\]</span></p>
+<div id="68f232a0" class="cell" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Barrier 2</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>notional <span class="op">=</span> <span class="dv">2_000_000</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>barrier <span class="op">=</span> <span class="fl">1.08</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>barrier_type <span class="op">=</span> ql.Barrier.DownOut</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>exercise <span class="op">=</span> ql.EuropeanExercise(expiration_date)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>barrier_25d_108b <span class="op">=</span> call_barrier_factory.get_option(d25_call_strike, exercise, barrier, barrier_type)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>barrier_2 <span class="op">=</span> BarrierPosition(barrier_25d_108b, notional, NullInstrument())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>3rd Barrier</p>
+<p><span class="math display">\[
+\begin{align*}
+    \text{Option type} &amp;= \text{Call} \\
+    \text{Notional} &amp;= \$1000000 \\
+    \text{Barrier} &amp;= 1.20 \\
+    \text{Strike} &amp;= 25\Delta c \\
+    \text{Barrier Type} &amp;= \text{Up and In}
+\end{align*}
+\]</span></p>
+<div id="047d8639" class="cell" data-execution_count="11">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Barrier 3</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>notional <span class="op">=</span> <span class="dv">1_000_000</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>barrier <span class="op">=</span> <span class="fl">1.20</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>barrier_type <span class="op">=</span> ql.Barrier.UpIn</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>exercise <span class="op">=</span> ql.EuropeanExercise(expiration_date)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>barrier_25d_120b <span class="op">=</span> call_barrier_factory.get_option(d25_call_strike, exercise, barrier, barrier_type)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>backup_vanilla <span class="op">=</span> call_vanilla_factory.get_option(d25_call_strike)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>FxVanillaOptionFactory.assign_analyitcal_price_engine(backup_vanilla, process)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>barrier_3 <span class="op">=</span> BarrierPosition(barrier_25d_120b, notional, backup_vanilla)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>4th Barrier</p>
+<p><span class="math display">\[
+\begin{align*}
+    \text{Option type} &amp;= \text{Put} \\
+    \text{Notional} &amp;= \$1000000 \\
+    \text{Barrier} &amp;= 1.05 \\
+    \text{Strike} &amp;= 25\Delta p \\
+    \text{Barrier Type} &amp;= \text{Down and Out}
+\end{align*}
+\]</span></p>
+<div id="f4ab3929" class="cell" data-execution_count="12">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Barrier 4</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>notional <span class="op">=</span> <span class="dv">1_000_000</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>barrier <span class="op">=</span> <span class="fl">1.05</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>barrier_type <span class="op">=</span> ql.Barrier.DownOut</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>exercise <span class="op">=</span> ql.EuropeanExercise(expiration_date)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>barrier_25d_105b <span class="op">=</span> put_barrier_factory.get_option(d25_put_strike, exercise, barrier, barrier_type)</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>barrier_4 <span class="op">=</span> BarrierPosition(barrier_25d_105b, notional, NullInstrument())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>5th Barrier</p>
+<p><span class="math display">\[
+\begin{align*}
+    \text{Option type} &amp;= \text{Put} \\
+    \text{Notional} &amp;= \$1000000 \\
+    \text{Barrier} &amp;= 1.25 \\
+    \text{Strike} &amp;= 25\Delta p \\
+    \text{Barrier Type} &amp;= \text{Up and Out}
+\end{align*}
+\]</span></p>
+<div id="0594cefb" class="cell" data-execution_count="13">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Barrier 5</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>notional <span class="op">=</span> <span class="dv">2_000_000</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>barrier <span class="op">=</span> <span class="fl">1.25</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>barrier_type <span class="op">=</span> ql.Barrier.UpOut</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>exercise <span class="op">=</span> ql.EuropeanExercise(expiration_date)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>barrier_25d_105b <span class="op">=</span> put_barrier_factory.get_option(d25_put_strike, exercise, barrier, barrier_type)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>barrier_5 <span class="op">=</span> BarrierPosition(barrier_25d_105b, notional, NullInstrument())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="758ac5d5" class="cell" data-execution_count="14">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>book: List[BarrierPosition] <span class="op">=</span> [barrier_1, barrier_2, barrier_3, barrier_4, barrier_5]</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ins <span class="kw">in</span> book:</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    FxBarrierOptionFactory.assign_analyitcal_price_engine(ins.instrument, process)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Thus the premium of the options will be the following</p>
+<div id="f6f5d071" class="cell" data-execution_count="15">
+<div class="cell-output cell-output-display" data-execution_count="15">
+<pre><code>[309.09996820797926,
+ 36387.852679406504,
+ 18342.987983359482,
+ 2064.118402600054,
+ 25897.462236607375]</code></pre>
+</div>
+</div>
+<p>Since the <code>AnalyticBarrierEngine</code> in QuantLib doesn’t provide greek calculation functionalities, the simplest method that we can use to calculate the greeks numerically is by using the finite difference method. Let’s the define the basic central differences formulas below, and then specialize them using a partial function application to get the greeks of interest.</p>
+<p>First order Finite Difference:</p>
+<p><span class="math display">\[
+f'(x) = \frac{f(x + h) - f(x - h)}{2 \cdot h}
+\]</span></p>
+<p>Second order Finite Difference:</p>
+<p><span class="math display">\[
+f''(x) = \frac{f(x + h) - 2f(x) + f(x - h)}{h^2}
+\]</span></p>
+<p>Cross partial derivative:</p>
+<p><span class="math display">\[
+f_{xy}(x, y) = \frac{f(x + h, y + k) - f(x +h, y - k) - f(x - h, y + k) + f(x - h, y - k)}{4hk}
+\]</span></p>
+<div id="b64528da" class="cell" data-execution_count="16">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> central_diff(instrument: ql.Instrument, h: <span class="bu">float</span>, quote: ql.SimpleQuote) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    u0 <span class="op">=</span> quote.value()</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    quote.setValue(u0 <span class="op">+</span> h)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    P_Plus <span class="op">=</span> instrument.NPV()</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    quote.setValue(u0 <span class="op">-</span> h)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    P_Minus <span class="op">=</span> instrument.NPV()</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    quote.setValue(u0)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (P_Plus <span class="op">-</span> P_Minus) <span class="op">/</span> (<span class="dv">2</span> <span class="op">*</span> h)</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> central_diff_2nd(instrument: ql.Instrument, h: <span class="bu">float</span>, quote: ql.SimpleQuote) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    u0 <span class="op">=</span> quote.value()</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>    P <span class="op">=</span> instrument.NPV()</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>    quote.setValue(u0 <span class="op">+</span> h)</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    P_Plus <span class="op">=</span> instrument.NPV()</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    quote.setValue(u0 <span class="op">-</span> h)</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    P_Minus <span class="op">=</span> instrument.NPV()</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>    quote.setValue(u0)</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (P_Plus <span class="op">-</span> <span class="dv">2</span><span class="op">*</span>P <span class="op">+</span> P_Minus) <span class="op">/</span> (h <span class="op">*</span> h)</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> cross_central_diff(instrument: ql.Instrument, h: <span class="bu">float</span>, k: <span class="bu">float</span>, quote_1: ql.SimpleQuote, quote_2: ql.SimpleQuote) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>    u1_0 <span class="op">=</span> quote_1.value()</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>    u2_0 <span class="op">=</span> quote_2.value()</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>    quote_1.setValue(u1_0 <span class="op">+</span> h)</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>    quote_2.setValue(u1_0 <span class="op">+</span> k)</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>    P_Plus_Plus <span class="op">=</span> instrument.NPV()</span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>    quote_1.setValue(u1_0 <span class="op">+</span> h)</span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>    quote_2.setValue(u1_0 <span class="op">-</span> k)</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>    P_Plus_Minus <span class="op">=</span> instrument.NPV()</span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>    quote_1.setValue(u1_0 <span class="op">-</span> h)</span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>    quote_2.setValue(u1_0 <span class="op">+</span> k)</span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a>    P_Minus_Plus <span class="op">=</span> instrument.NPV()</span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a>    quote_1.setValue(u1_0 <span class="op">-</span> h)</span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a>    quote_2.setValue(u1_0 <span class="op">-</span> k)</span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a>    P_Minus_Minus <span class="op">=</span> instrument.NPV()</span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a>    quote_1.setValue(u1_0)</span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>    quote_2.setValue(u2_0)</span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (P_Plus_Plus <span class="op">-</span> P_Plus_Minus <span class="op">-</span> P_Minus_Plus <span class="op">+</span> P_Minus_Minus) <span class="op">/</span> (<span class="dv">4</span> <span class="op">*</span> h <span class="op">*</span> k)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>From that we can easily define the greeks functions:</p>
+<div id="5caadf3a" class="cell" data-execution_count="17">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>delta <span class="op">=</span> partial(central_diff, quote<span class="op">=</span>spot_quote)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>vega <span class="op">=</span> partial(central_diff, quote<span class="op">=</span>vol_quote)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>gamma <span class="op">=</span> partial(central_diff_2nd, quote<span class="op">=</span>spot_quote)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>volga <span class="op">=</span> partial(central_diff_2nd, quote<span class="op">=</span>vol_quote)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>vanna <span class="op">=</span> partial(cross_central_diff, quote_1<span class="op">=</span>spot_quote, quote_2<span class="op">=</span>vol_quote)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="hedging-the-book" class="level2">
+<h2 class="anchored" data-anchor-id="hedging-the-book">Hedging the book</h2>
+<p>Now that we have set up the trader portfolio, we need to find the optimal hedge for that portfolio that is going to minimize the sensitivities that we want not be exposed to. Usually a trader sitting in a exotic desk will not just keep low exposure to the classical greeks like <span class="math inline">\(\Delta\)</span>, <span class="math inline">\(\Gamma\)</span> and <span class="math inline">\(\mathcal{V}\)</span>, but also in some higher order Greeks live DVegaDvol (a.k.a. <span class="math inline">\(Volga\)</span>) and the DVegaDSpot (a.k.a. <span class="math inline">\(Vanna\)</span>).</p>
+<p>This need comes from the fact that in case of exotics (especially for barrier and binaries) the “barrier” risks needs to be hedged: as spot moves closer to the barrier, vega can spike, that’s vanna risk.</p>
+<p>The most common way to hedge those greeks in the FX option market is by using simple structure that can be obtained by <span class="math inline">\(25 \Delta\)</span> calls and puts and ATM calls and puts. Here’s the basic structures that will compose our hedging portfolio:</p>
+<ul>
+<li>Spot: to oviously to hedge the <span class="math inline">\(\Delta\)</span></li>
+<li>ATM straddles: involves buying an ATM vanilla call and ATM vanilla put, this structure provides positive gamma and positive vega</li>
+<li>RR (Risks reversals): involves buying an <span class="math inline">\(25 \Delta\)</span> vanilla call and sell a <span class="math inline">\(25 \Delta\)</span> vanilla put, provides a strong vanna exposure (becuase calls and puts respond differently as spot moves)</li>
+<li>Butterflies: involves buying an <span class="math inline">\(25 \Delta\)</span> vanilla call and sell a <span class="math inline">\(25 \Delta\)</span> vanilla put and selling twice a straddle, provides a strong volga exposure.</li>
+</ul>
+<section id="hedge-methodology" class="level3">
+<h3 class="anchored" data-anchor-id="hedge-methodology">Hedge methodology</h3>
+<p>The way we are going to find the optimal weights of our hedging portfolio is by using the classical <em>parameter hedging</em> methodology. Which mathematically means to set up a linear system where:</p>
+<p>The exposure vector is:</p>
+<p><span class="math display">\[
+\mathbf{E} = \begin{bmatrix} \Delta \\ \Gamma \\ \text{Vega} \\ \text{Vanna} \\ \text{Volga} \end{bmatrix}.
+\]</span></p>
+<p>which represent the total exposure of our portfolio (the weighted sum of each instrument greek in our exotic portfolio). For each hedge instrument <span class="math inline">\(j\)</span> (spot, ATM straddle, RR, BF), compute its greek vector <span class="math inline">\(\mathbf{h}_j\)</span>. Form the hedge matrix:</p>
+<p><span class="math display">\[
+H = \begin{bmatrix} \mathbf{h}_1 &amp; \mathbf{h}_2 &amp; \dots &amp; \mathbf{h}_n \end{bmatrix}.
+\]</span></p>
+<p>Then solve for weights <span class="math inline">\(\mathbf{x}\)</span> (position sizes):</p>
+<p><span class="math display">\[
+H \mathbf{x} - E  \approx 0.
+\]</span></p>
+<p>In our case the exposure vector is bigger than the hedging vector <span class="math inline">\(x\)</span>, since we only 4 instruments and 5 greeks to hedge. We end up with a linear system with 4 variables and 5 equations, thus there is not an exact solution, but we can find a solution that minimized the sum of residual squares.</p>
+<p>When we want to calculate the greeks of our portfolio, we want to do it in meaningful way, thus this requires to us to set the shift operator in a way that makes sense to measure the specific risk of our porfolio. The two main ways that industry professional do that is by using 1% of the spot change and 1% vol change.</p>
+<div id="59dc8705" class="cell" data-execution_count="19">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>spot_change <span class="op">=</span> <span class="fl">0.01</span> <span class="op">*</span> spot_quote.value() <span class="op">/</span> <span class="dv">2</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>vol_change <span class="op">=</span> <span class="fl">0.01</span> <span class="op">/</span> <span class="dv">2</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>delta_book <span class="op">=</span> <span class="bu">sum</span>([pos.sensitivity(delta, h<span class="op">=</span>spot_change) <span class="cf">for</span> pos <span class="kw">in</span> book])</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>vega_book <span class="op">=</span> <span class="bu">sum</span>([pos.sensitivity(vega, h<span class="op">=</span>vol_change) <span class="cf">for</span> pos <span class="kw">in</span> book])</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>volga_book <span class="op">=</span> <span class="bu">sum</span>([pos.sensitivity(volga, h<span class="op">=</span>vol_change) <span class="cf">for</span> pos <span class="kw">in</span> book])</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>gamma_book <span class="op">=</span> <span class="bu">sum</span>([pos.sensitivity(gamma, h<span class="op">=</span>spot_change) <span class="cf">for</span> pos <span class="kw">in</span> book])</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>vanna_book <span class="op">=</span> <span class="bu">sum</span>([pos.sensitivity(vanna, h<span class="op">=</span>spot_change, k<span class="op">=</span>vol_change) <span class="cf">for</span> pos <span class="kw">in</span> book])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The raw Greek exposition for our book is then the following:</p>
+<div id="252a9ff7" class="cell" data-execution_count="20">
+<div class="cell-output cell-output-stdout">
+<pre><code>Book Delta exposure: 371644.134787602
+Book Gamma exposure: 13330632.102691187
+Book Vega exposure: 1183872.580309415
+Book Volga exposure: 380633.56067277736
+Book Vanna exposure: 190025.47439962075</code></pre>
+</div>
+</div>
+<p>In FX, Greeks can be confusing, because they depend on the quotation of the currency pair as well as the currency in which they are calculated. Furthermore, premium can be included or excluded, smile-effect can be included or not included, and numerical approximations may further add to the confusion.</p>
+<p>What traders use in real life are a “modified version” of the plain greeks:</p>
+<ul>
+<li><p>The plain <span class="math inline">\(\Delta\)</span> of a forex option gives the amount of Foreing currency a trader would have to buy in the spot-market to delta-hedge a sold-option. To get the amount of dollars to buy those EURs (in our case) we need to multiply the delta by the current spot value.</p></li>
+<li><p>Traders’ <span class="math inline">\(\Gamma\)</span>: where the spot in the finite diff method is varied by 0.5% and then multiplied by 1%, since traders consider the change of delta as spot changes relatively by 1%.</p></li>
+</ul>
+<p><span class="math display">\[
+\Gamma^{tr}_t = \Gamma_t \frac{S_t}{100}
+\]</span></p>
+<ul>
+<li>Traders’ <span class="math inline">\(\mathcal{V}\)</span>: A trader will typically consider vega as the change of the USD or EUR value of a derivative contract (or a book of derivatives) assuming a 1% absolute/constant change in volatility.</li>
+</ul>
+<p><span class="math display">\[
+\frac{V(\sigma + 0.5\%) - V(\sigma - 0.5\%)}{1\%} \cdot 1\%
+\]</span></p>
+<div id="e26f2cbc" class="cell" data-execution_count="21">
+<div class="cell-output cell-output-stdout">
+<pre><code>Book Delta exposure: $438540.0790493703
+Book Gamma exposure: $157301.458811756
+Book Vega exposure: $11838.72580309415
+Book Volga exposure: $3806.3356067277737
+Book Vanna exposure: $2242.300597915525</code></pre>
+</div>
+</div>
+<p>As you might guess the exposition is negative since we are on the sell-side of the trade, thus we need to buy the hedging structures to hedge ourselves from those greeks.</p>
+<p>Our exposure vector <span class="math inline">\(E = [ \Delta, \Gamma, \mathcal{V}, Volga, Vanna ]\)</span> is:</p>
+<div id="ab5775f6" class="cell" data-execution_count="22">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Greek exposure vector</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>E <span class="op">=</span> np.array([delta_book, gamma_book, vega_book, volga_book, vanna_book])</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>E</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="22">
+<pre><code>array([  371644.1347876 , 13330632.10269119,  1183872.58030942,
+         380633.56067278,   190025.47439962])</code></pre>
+</div>
+</div>
+<p>For each of the base instrument (Spot, ATM call, ATM put, <span class="math inline">\(25\Delta\)</span> call and <span class="math inline">\(25\Delta\)</span> put) let’s calculate the basic greeks.</p>
+<div id="fa03820a" class="cell" data-execution_count="23">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># hedge_matrix</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>base_notional <span class="op">=</span> np.float64(<span class="dv">1_000_000</span>)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>spot_greeks <span class="op">=</span> np.array([<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>]) <span class="op">*</span> base_notional</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>atm_call_greeks <span class="op">=</span> np.array([</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    delta(atm_call, h<span class="op">=</span>spot_change),</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    gamma(atm_call, h<span class="op">=</span>spot_change),</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    vega(atm_call, h<span class="op">=</span>vol_change),</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    volga(atm_call, h<span class="op">=</span>vol_change),</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    vanna(atm_call, h<span class="op">=</span>spot_change, k<span class="op">=</span>vol_change),</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>]) <span class="op">*</span> base_notional</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>atm_put_greeks <span class="op">=</span> np.array([</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>    delta(atm_put, h<span class="op">=</span>spot_change),</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>    gamma(atm_put, h<span class="op">=</span>spot_change),</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>    vega(atm_put, h<span class="op">=</span>vol_change),</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>    volga(atm_put, h<span class="op">=</span>vol_change),</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>    vanna(atm_put, h<span class="op">=</span>spot_change, k<span class="op">=</span>vol_change),</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>]) <span class="op">*</span> base_notional</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>delta25_call_greeks <span class="op">=</span> np.array([</span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>    delta(delta25_call, h<span class="op">=</span>spot_change),</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>    gamma(delta25_call, h<span class="op">=</span>spot_change),</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>    vega(delta25_call, h<span class="op">=</span>vol_change),</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>    volga(delta25_call, h<span class="op">=</span>vol_change),</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>    vanna(delta25_call, h<span class="op">=</span>spot_change, k<span class="op">=</span>vol_change),</span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>]) <span class="op">*</span> base_notional</span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>delta25_put_greeks <span class="op">=</span> np.array([</span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>    delta(delta25_put, h<span class="op">=</span>spot_change),</span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>    gamma(delta25_put, h<span class="op">=</span>spot_change),</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>    vega(delta25_put, h<span class="op">=</span>vol_change),</span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>    volga(delta25_put, h<span class="op">=</span>vol_change),</span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>    vanna(delta25_put, h<span class="op">=</span>spot_change, k<span class="op">=</span>vol_change),</span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>]) <span class="op">*</span> base_notional</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>From there let’s calculate the greek exposure for the strcutures that we are going to use in out hedging portfolio, and then create our Hedge Matrix:</p>
+<p><span class="math display">\[
+H = \left[
+\begin{array}{c|cccc}
+    &amp; \text{Spot} &amp; \text{Straddle} &amp; \text{RR} &amp; \text{Butterfly} \\
+    \hline
+    \Delta   &amp; h_{11} &amp; h_{12} &amp; h_{13} &amp; h_{14} \\
+    \Gamma   &amp; h_{21} &amp; h_{22} &amp; h_{23} &amp; h_{24} \\
+    \text{Vega}   &amp; h_{31} &amp; h_{32} &amp; h_{33} &amp; h_{34} \\
+    \text{Volga}  &amp; h_{41} &amp; h_{42} &amp; h_{43} &amp; h_{44} \\
+    \text{Vanna}  &amp; h_{51} &amp; h_{52} &amp; h_{53} &amp; h_{54} \\
+\end{array}
+\right]
+\]</span></p>
+<div id="c88abce5" class="cell" data-execution_count="24">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Let's create the straddle, RR, Butterfly from the base vanilla options</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>atm_straddle <span class="op">=</span> atm_call_greeks <span class="op">+</span> atm_put_greeks</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>rr <span class="op">=</span> delta25_call_greeks <span class="op">-</span> delta25_put_greeks</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>butterfly <span class="op">=</span> delta25_call_greeks <span class="op">+</span> delta25_put_greeks <span class="op">-</span> <span class="dv">2</span> <span class="op">*</span> atm_straddle</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Hedge Matrix</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>H <span class="op">=</span> np.stack([spot_greeks, atm_straddle, rr, butterfly]).T</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Since our system have more equations than variables, we must use a least square method (provided by <code>np.linalg.lstsq</code>) to solve it. Least square method minimizes the Euclidian 2-norm $ || E - Hx || $.</p>
+<div id="decf7a68" class="cell" data-execution_count="25">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>x, _, _, _ <span class="op">=</span> np.linalg.lstsq(H, E)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Now that we have a solution let’s see what’s our remaining exposure to each of the choosen hedged greeks. We do that by</p>
+<p><span class="math display">\[
+H x - E
+\]</span></p>
+<div id="d9d73e2f" class="cell" data-execution_count="26">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>residual_greeks <span class="op">=</span> (H <span class="op">@</span> x <span class="op">-</span> E).tolist()</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Residual Delta exposure: $</span><span class="sc">{</span>residual_greeks[<span class="dv">0</span>] <span class="op">*</span> spot_quote<span class="sc">.</span>value()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Residual Gamma exposure: $</span><span class="sc">{</span>residual_greeks[<span class="dv">1</span>] <span class="op">*</span> <span class="fl">0.01</span> <span class="op">*</span> spot_quote<span class="sc">.</span>value()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Residual Vega exposure: $</span><span class="sc">{</span>residual_greeks[<span class="dv">2</span>] <span class="op">*</span> <span class="fl">0.01</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Residual Volga exposure: $</span><span class="sc">{</span>residual_greeks[<span class="dv">3</span>] <span class="op">*</span> <span class="fl">0.01</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Residual Vanna exposure: $</span><span class="sc">{</span>residual_greeks[<span class="dv">4</span>] <span class="op">*</span> spot_quote<span class="sc">.</span>value() <span class="op">*</span> <span class="fl">0.01</span><span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Residual Delta exposure: $-2.6100315153598783e-09
+Residual Gamma exposure: $-13.422826034608855
+Residual Vega exposure: $126.72764540341916
+Residual Volga exposure: $0.016476123058237136
+Residual Vanna exposure: $-0.09291220850032404</code></pre>
+</div>
+</div>
+<p>Another crucial thing when hedging a book is, of course, to measure the P&amp;L from one rebalancing period to another. Let’s then calculate the value of the various components of our hedging portfolio. We have the the P&amp;L from time <span class="math inline">\(t\)</span> is calculated as:</p>
+<p><span class="math display">\[
+P\&amp;L_{t \rightarrow t + 1} = (V_{t + 1}^{book} + V_{t + 1}^{hedge} + C_{t + 1}) - (V_{t}^{book} + V_{t}^{hedge} + C_{t})
+\]</span></p>
+<p>where:</p>
+<ul>
+<li><span class="math inline">\(V_{t}^{book}\)</span> is the value of our book at time <span class="math inline">\(t\)</span>, which is the sum of the premiums that we’ve been collected</li>
+<li><span class="math inline">\(V_{t}^{hedge}\)</span> is the value of the hedging portfolio, the sum of the premium of the structures that we have bought to hedge our from the various sensistivies</li>
+<li><span class="math inline">\(C_t\)</span> the cash/bank account of our portfolio which includes financing of cash and trade cashflows</li>
+</ul>
+<p>A shorter way to express the P&amp;L, is just by considering the variation of the value of the book + the variation of the value of the hedges + cost of borrowing + interest accrued:</p>
+<p><span class="math display">\[
+P\&amp;L_{t \rightarrow t + 1} = \delta V_{t, t + 1}^{book} + \delta V_{t, t + 1}^{hedge} + \text{cost of borrowing} + \text{interest accrued}
+\]</span></p>
+<p>since the rebalancing of the hedges of the bank account happend at the end of trading day.</p>
+<div id="e6d102d2" class="cell" data-execution_count="27">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>spot_premium_eur <span class="op">=</span> x[<span class="dv">0</span>] <span class="op">*</span> base_notional</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>spot_premium_usd <span class="op">=</span> x[<span class="dv">0</span>] <span class="op">*</span> base_notional <span class="op">*</span> spot_quote.value()</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>atm_straddle_premium <span class="op">=</span> atm_call.NPV() <span class="op">+</span> atm_put.NPV() <span class="op">*</span> base_notional <span class="op">*</span> x[<span class="dv">1</span>]</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>rr_premium <span class="op">=</span> delta25_call.NPV() <span class="op">-</span> delta25_put.NPV() <span class="op">*</span> base_notional <span class="op">*</span> x[<span class="dv">2</span>]</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>butterfly_premium <span class="op">=</span> (delta25_call.NPV() <span class="op">+</span> delta25_put.NPV() <span class="op">-</span> <span class="dv">2</span> <span class="op">*</span> (atm_call.NPV() <span class="op">+</span> atm_put.NPV())) <span class="op">*</span> x[<span class="dv">3</span>] <span class="op">*</span> base_notional</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The usd borrowed (which is the sum of the premiums of or hedging instrument) is crucial for use to calculate the interest accrued for borrowing the usd dollars to buy the hedging structures.</p>
+<div id="2eaa7f70" class="cell" data-execution_count="28">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>hedging_str_premium <span class="op">=</span> atm_straddle_premium <span class="op">+</span> rr_premium <span class="op">+</span> butterfly_premium <span class="op">+</span> spot_premium_usd</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>hedging_str_premium</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="28">
+<pre><code>np.float64(4182631.052146415)</code></pre>
+</div>
+</div>
+<p>Thus the value of the cash at time <span class="math inline">\(t = 0\)</span> is the equal to all the cash that we’ve borrowed to build the hedging structures plus the premiums that we’ve been collected from selling the exotics options</p>
+<div id="2cf87165" class="cell" data-execution_count="29">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>bank_account_value <span class="op">=</span> <span class="op">-</span> hedging_str_premium <span class="op">+</span> np.<span class="bu">sum</span>(premiums)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>bank_account_value</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="29">
+<pre><code>np.float64(-4099629.5308762337)</code></pre>
+</div>
+</div>
+<div id="590656fa" class="cell" data-execution_count="30">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>port_value <span class="op">=</span> [hedging_str_premium <span class="op">-</span> np.<span class="bu">sum</span>(premiums) <span class="op">+</span> bank_account_value]</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"The portfolio value at time t = 0 is </span><span class="sc">{</span>port_value[<span class="dv">0</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>The portfolio value at time t = 0 is 0.0</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="changes-of-the-hedging-portfolio-with-the-changes-of-the-market-conditions" class="level2">
+<h2 class="anchored" data-anchor-id="changes-of-the-hedging-portfolio-with-the-changes-of-the-market-conditions">Changes of the hedging portfolio with the changes of the market conditions</h2>
+<p>Now that we have setup our hedging portfolio see verify how its will change as the spot and vol change. Let’s assume that in a week period the spot went go down by 300 pips and the vol went up by <span class="math inline">\(1\%\)</span>.</p>
+<div id="62eda722" class="cell" data-execution_count="31">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>spot_quote.setValue(<span class="fl">1.15</span>)</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>vol_quote.setValue(<span class="fl">0.14</span>)</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>ql.Settings.instance().evaluationDate <span class="op">=</span> today <span class="op">+</span> ql.Period(<span class="dv">7</span>, ql.Days)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="ee56248c" class="cell" data-execution_count="32">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>new_premiums <span class="op">=</span> [pos.NPV() <span class="cf">for</span> pos <span class="kw">in</span> book]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>With the new spot and vol let’s recalculate the book exposure</p>
+<div id="b1fde571" class="cell" data-execution_count="33">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>delta_book <span class="op">=</span> <span class="bu">sum</span>([pos.sensitivity(delta, h<span class="op">=</span>spot_change) <span class="cf">for</span> pos <span class="kw">in</span> book])</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>vega_book <span class="op">=</span> <span class="bu">sum</span>([pos.sensitivity(vega, h<span class="op">=</span>vol_change) <span class="cf">for</span> pos <span class="kw">in</span> book])</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>volga_book <span class="op">=</span> <span class="bu">sum</span>([pos.sensitivity(volga, h<span class="op">=</span>vol_change) <span class="cf">for</span> pos <span class="kw">in</span> book])</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>gamma_book <span class="op">=</span> <span class="bu">sum</span>([pos.sensitivity(gamma, h<span class="op">=</span>spot_change) <span class="cf">for</span> pos <span class="kw">in</span> book])</span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>vanna_book <span class="op">=</span> <span class="bu">sum</span>([pos.sensitivity(vanna, h<span class="op">=</span>spot_change, k<span class="op">=</span>vol_change) <span class="cf">for</span> pos <span class="kw">in</span> book])</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="co"># new Exposure vector</span></span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>E <span class="op">=</span> np.array([delta_book, gamma_book, vega_book, volga_book, vanna_book])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="4e20ab91" class="cell" data-execution_count="34">
+<div class="cell-output cell-output-stdout">
+<pre><code>Book Delta exposure: $16549.207988699432
+Book Gamma exposure: $138778.80052508457
+Book Vega exposure: $11096.72161278602
+Book Volga exposure: $560.5276947207037
+Book Vanna exposure: $2416.5207043533637</code></pre>
+</div>
+</div>
+<p>As before let’s recalculate the greeks for the basic trading instruments, and then combine to obtain the greeks for the structures used in the hedging portfolio.</p>
+<div id="ee751248" class="cell" data-execution_count="35">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># hedge_matrix</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>base_notional <span class="op">=</span> np.float64(<span class="dv">1_000_000</span>)</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>spot_greeks <span class="op">=</span> np.array([<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>]) <span class="op">*</span> base_notional</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>atm_call_greeks <span class="op">=</span> np.array([</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>    delta(atm_call, h<span class="op">=</span>spot_change),</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>    gamma(atm_call, h<span class="op">=</span>spot_change),</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>    vega(atm_call, h<span class="op">=</span>vol_change),</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>    volga(atm_call, h<span class="op">=</span>vol_change),</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>    vanna(atm_call, h<span class="op">=</span>spot_change, k<span class="op">=</span>vol_change),</span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>]) <span class="op">*</span> base_notional</span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>atm_put_greeks <span class="op">=</span> np.array([</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>    delta(atm_put, h<span class="op">=</span>spot_change),</span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>    gamma(atm_put, h<span class="op">=</span>spot_change),</span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>    vega(atm_put, h<span class="op">=</span>vol_change),</span>
+<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a>    volga(atm_put, h<span class="op">=</span>vol_change),</span>
+<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>    vanna(atm_put, h<span class="op">=</span>spot_change, k<span class="op">=</span>vol_change),</span>
+<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>]) <span class="op">*</span> base_notional</span>
+<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a>delta25_call_greeks <span class="op">=</span> np.array([</span>
+<span id="cb34-19"><a href="#cb34-19" aria-hidden="true" tabindex="-1"></a>    delta(delta25_call, h<span class="op">=</span>spot_change),</span>
+<span id="cb34-20"><a href="#cb34-20" aria-hidden="true" tabindex="-1"></a>    gamma(delta25_call, h<span class="op">=</span>spot_change),</span>
+<span id="cb34-21"><a href="#cb34-21" aria-hidden="true" tabindex="-1"></a>    vega(delta25_call, h<span class="op">=</span>vol_change),</span>
+<span id="cb34-22"><a href="#cb34-22" aria-hidden="true" tabindex="-1"></a>    volga(delta25_call, h<span class="op">=</span>vol_change),</span>
+<span id="cb34-23"><a href="#cb34-23" aria-hidden="true" tabindex="-1"></a>    vanna(delta25_call, h<span class="op">=</span>spot_change, k<span class="op">=</span>vol_change),</span>
+<span id="cb34-24"><a href="#cb34-24" aria-hidden="true" tabindex="-1"></a>]) <span class="op">*</span> base_notional</span>
+<span id="cb34-25"><a href="#cb34-25" aria-hidden="true" tabindex="-1"></a>delta25_put_greeks <span class="op">=</span> np.array([</span>
+<span id="cb34-26"><a href="#cb34-26" aria-hidden="true" tabindex="-1"></a>    delta(delta25_put, h<span class="op">=</span>spot_change),</span>
+<span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a>    gamma(delta25_put, h<span class="op">=</span>spot_change),</span>
+<span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a>    vega(delta25_put, h<span class="op">=</span>vol_change),</span>
+<span id="cb34-29"><a href="#cb34-29" aria-hidden="true" tabindex="-1"></a>    volga(delta25_put, h<span class="op">=</span>vol_change),</span>
+<span id="cb34-30"><a href="#cb34-30" aria-hidden="true" tabindex="-1"></a>    vanna(delta25_put, h<span class="op">=</span>spot_change, k<span class="op">=</span>vol_change),</span>
+<span id="cb34-31"><a href="#cb34-31" aria-hidden="true" tabindex="-1"></a>]) <span class="op">*</span> base_notional</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="46e467dc" class="cell" data-execution_count="36">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Let's create the straddle, RR, Butterfly from the base vanilla options</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>atm_straddle <span class="op">=</span> atm_call_greeks <span class="op">+</span> atm_put_greeks</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>rr <span class="op">=</span> delta25_call_greeks <span class="op">-</span> delta25_put_greeks</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>butterfly <span class="op">=</span> delta25_call_greeks <span class="op">+</span> delta25_put_greeks <span class="op">-</span> <span class="dv">2</span> <span class="op">*</span> atm_straddle</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Hedge Matrix</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>H <span class="op">=</span> np.stack([spot_greeks, atm_straddle, rr, butterfly]).T</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The esposure of our hedging portfolio is now is:</p>
+<div id="14151e72" class="cell" data-execution_count="37">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># New exposure of the hedging portfolio</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>exposure <span class="op">=</span> (H <span class="op">@</span> x <span class="op">-</span> E).tolist()</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Residual Delta exposure: $</span><span class="sc">{</span>exposure[<span class="dv">0</span>] <span class="op">*</span> spot_quote<span class="sc">.</span>value()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Residual Gamma exposure: $</span><span class="sc">{</span>exposure[<span class="dv">1</span>] <span class="op">*</span> <span class="fl">0.01</span> <span class="op">*</span> spot_quote<span class="sc">.</span>value()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Residual Vega exposure: $</span><span class="sc">{</span>exposure[<span class="dv">2</span>] <span class="op">*</span> <span class="fl">0.01</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Residual Volga exposure: $</span><span class="sc">{</span>exposure[<span class="dv">3</span>] <span class="op">*</span> <span class="fl">0.01</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Residual Vanna exposure: $</span><span class="sc">{</span>exposure[<span class="dv">4</span>] <span class="op">*</span> <span class="fl">0.01</span> <span class="op">*</span> spot_quote<span class="sc">.</span>value()<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Residual Delta exposure: $-348789.7260608019
+Residual Gamma exposure: $73758.42210270112
+Residual Vega exposure: $5879.026689021433
+Residual Volga exposure: $-54024.14332019365
+Residual Vanna exposure: $117.87655605534354</code></pre>
+</div>
+</div>
+<p>To calculate the P&amp;L from time t to t+1 we need to calculate the change of the value of the hedging portfolio as well</p>
+<div id="69f656f5" class="cell" data-execution_count="38">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>spot_premium_usd <span class="op">=</span> x[<span class="dv">0</span>] <span class="op">*</span> base_notional <span class="op">*</span> spot_quote.value()</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>atm_straddle_premium <span class="op">=</span> atm_call.NPV() <span class="op">+</span> atm_put.NPV() <span class="op">*</span> base_notional <span class="op">*</span> x[<span class="dv">1</span>]</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>rr_premium <span class="op">=</span> delta25_call.NPV() <span class="op">-</span> delta25_put.NPV() <span class="op">*</span> base_notional <span class="op">*</span> x[<span class="dv">2</span>]</span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>butterfly_premium <span class="op">=</span> (delta25_call.NPV() <span class="op">+</span> delta25_put.NPV() <span class="op">-</span> <span class="dv">2</span> <span class="op">*</span> (atm_call.NPV() <span class="op">+</span> atm_put.NPV())) <span class="op">*</span> x[<span class="dv">3</span>] <span class="op">*</span> base_notional</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>new_hedging_str_premium <span class="op">=</span> atm_straddle_premium <span class="op">+</span> rr_premium <span class="op">+</span> butterfly_premium <span class="op">+</span> spot_premium_usd</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="40ea160f" class="cell" data-execution_count="39">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>dt <span class="op">=</span> dc.yearFraction(today, today <span class="op">+</span> ql.Period(<span class="dv">7</span>, ql.Days))</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>usd_interest_cost <span class="op">=</span> hedging_str_premium <span class="op">*</span> r_d <span class="op">*</span> dt</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>eur_interest_accr <span class="op">=</span> spot_premium_eur <span class="op">*</span> r_f <span class="op">*</span> dt</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>new_total_portfolio_value <span class="op">=</span> new_hedging_str_premium <span class="op">-</span> np.<span class="bu">sum</span>(new_premiums) <span class="op">+</span> bank_account_value <span class="op">-</span> usd_interest_cost <span class="op">+</span> eur_interest_accr <span class="op">*</span> spot_quote.value()</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Portfolio value at time t = 1 is: $</span><span class="sc">{</span>new_total_portfolio_value<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Portfolio value at time t = 1 is: $-8014.640804257949</code></pre>
+</div>
+</div>
+<div id="a612426b" class="cell" data-execution_count="41">
+<div class="cell-output cell-output-stdout">
+<pre><code>The P&amp;L after a week is: $-8014.640804257949</code></pre>
+</div>
+</div>
+<p>If we want to reduce our exposure and bring it back to a lower one, we need to recalculate the optiomal hedging weight for our hedging portfolio as before:</p>
+<div id="e49576b6" class="cell" data-execution_count="42">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>x_new, _, _, _ <span class="op">=</span> np.linalg.lstsq(H, E)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>This how our hedging portfolio has to change:</p>
+<div id="095f0634" class="cell" data-execution_count="43">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>x_new <span class="op">-</span> x</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="43">
+<pre><code>array([-0.33252725,  3.27195222,  0.99407244,  3.52132318])</code></pre>
+</div>
+</div>
+<p>The residual greek exposure after the rebalancing is:</p>
+<div id="18e5c5c8" class="cell" data-execution_count="44">
+<div class="cell-output cell-output-stdout">
+<pre><code>Residual Delta exposure: $-4.2255123844370243e-10
+Residual Gamma exposure: $1.7120357189066706
+Residual Vega exposure: $-16.21605768425856
+Residual Volga exposure: $-0.0021280367333383764
+Residual Vanna exposure: $0.014062687186218682</code></pre>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/your-website-url\.example\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

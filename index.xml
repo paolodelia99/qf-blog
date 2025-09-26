@@ -1,0 +1,1825 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss  xmlns:atom="http://www.w3.org/2005/Atom" 
+      xmlns:media="http://search.yahoo.com/mrss/" 
+      xmlns:content="http://purl.org/rss/1.0/modules/content/" 
+      xmlns:dc="http://purl.org/dc/elements/1.1/" 
+      version="2.0">
+<channel>
+<title>blog</title>
+<link>https://your-website-url.example.com/</link>
+<atom:link href="https://your-website-url.example.com/index.xml" rel="self" type="application/rss+xml"/>
+<description>A blog built with Quarto</description>
+<generator>quarto-1.8.24</generator>
+<lastBuildDate>Mon, 08 Mar 2027 23:00:00 GMT</lastBuildDate>
+<item>
+  <title>Hedging a book of exotic options</title>
+  <link>https://your-website-url.example.com/posts/post-with-code/exotic-book.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>In this notebook, we take on the role of a trader working on an investment bank’s exotic options desk, focusing on FX derivatives. We will explore how such traders hedge their books and how the portfolio’s value and Greek exposures change as the underlying market parameters evolve. To keep things simple, we assume the underlying follows a geometric Brownian motion, with flat term structures for both the volatility surface and the domestic and foreign interest rates. This places us in a Black-Scholes framework (specifically the BS-extended model for FX options, the Garman-Kohlhagen model), described by the following dynamics under the risk-neutral measure:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0AdS_t%20&amp;=%20(r_d%20-%20r_f)%20S_t%20%5C,%20dt%20+%20%5Csigma%20S_t%20%5C,%20dW_t%5Ed,%20%5C%5C%0AdB%5Ed_t%20&amp;=%20r_d%20B%5Ed_t%5C,%20dt,%20%5C%5C%0AdB%5Ef_t%20&amp;=%20r_f%20B%5Ef_t%5C,%20dt%0A%5Cend%7Balign*%7D%0A"></p>
+<p>The investments banks are said to be on the “sell-side”, which basically means that they facilitate transactions between institutions, and provide access to financial markets. In our case we are manifacturing exotics options for our clients, who are seeking market opportunities. This leaves the trader with a significant exposition, as the bank take the opposite side of client trades. To manage the risk and ensure the bank meet its obligations when options are exercised, the trader must hedge against market movements.</p>
+<p>The hedging of exotics does not only involves hedging first order greeks (the <img src="https://latex.codecogs.com/png.latex?%5CDelta"> and the <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BV%7D">), but its involves hedging high order greeks like <img src="https://latex.codecogs.com/png.latex?%5CGamma">, <img src="https://latex.codecogs.com/png.latex?Vanna"> (DvolDspot) and <img src="https://latex.codecogs.com/png.latex?Volga"> (DvegaDvol). Another completixity when hedging exotics option, especially when dealing with binary or barriers, pin risks needs to be taken into account when the barrier is hit.</p>
+<p>The library we use for option pricing is <code>QuantLib</code>, the largest open-source quantitative finance library available. <code>QuantLib</code> offers a comprehensive suite of tools for modeling, pricing, and risk management of financial derivatives. Its active community and extensive documentation make it a popular choice among both practitioners and researchers in the field.</p>
+<section id="market-data" class="level2">
+<h2 class="anchored" data-anchor-id="market-data">Market Data</h2>
+<p>Let’s assume that we are an USD based desk and we are dealing with EURUSD exotics. The initial market data at time <img src="https://latex.codecogs.com/png.latex?t%20=%200"> is the following</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%20%20%20%20S_0%20&amp;=%201.18%20%5C%5C%0A%20%20%20%20Date(Today)%20&amp;=%2016/09/2025%20%5C%5C%0A%20%20%20%20T%20&amp;=%200.5%20%5Ctext%7B%20(time%20to%20expiration%20in%20years)%7D%20%5C%5C%0A%20%20%20%20r_d%20&amp;=%200.045%20%5C%5C%0A%20%20%20%20r_f%20&amp;=%200.02%20%5C%5C%0A%20%20%20%20%5Csigma%20&amp;=%200.13%20%5C%5C%0A%5Cend%7Balign*%7D%0A"></p>
+<div id="2557c9e5" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1">EUR_USD <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.18</span></span>
+<span id="cb1-2">spot_quote <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.SimpleQuote(EUR_USD)</span>
+<span id="cb1-3">today <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.Date(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>, ql.September, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2025</span>)</span>
+<span id="cb1-4">r_d <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.045</span></span>
+<span id="cb1-5">r_f <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.02</span></span>
+<span id="cb1-6">vol_quote <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.SimpleQuote(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.13</span>)</span>
+<span id="cb1-7">spot_handle <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.QuoteHandle(spot_quote)</span>
+<span id="cb1-8">vol_handle <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.QuoteHandle(vol_quote)</span>
+<span id="cb1-9"></span>
+<span id="cb1-10">dc <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.Actual365Fixed()</span>
+<span id="cb1-11">calendar <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.JointCalendar(ql.Italy(), ql.UnitedStates(ql.UnitedStates.NYSE))</span>
+<span id="cb1-12"></span>
+<span id="cb1-13">expiration_date <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> today <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> ql.Period(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>, ql.Months)</span>
+<span id="cb1-14">expiration_time <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> dc.yearFraction(today, expiration_date)</span>
+<span id="cb1-15">domestic_rf_handle <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.YieldTermStructureHandle(ql.FlatForward(today, r_d, dc))</span>
+<span id="cb1-16">foreign_rf_handle <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.YieldTermStructureHandle(ql.FlatForward(today, r_f, dc))</span>
+<span id="cb1-17">black_vol <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.BlackConstantVol(today, ql.NullCalendar(), vol_handle, dc)</span>
+<span id="cb1-18">vol_ts_handle <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.BlackVolTermStructureHandle(black_vol)</span>
+<span id="cb1-19"></span>
+<span id="cb1-20"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Setting the global evaluation date</span></span>
+<span id="cb1-21">ql.Settings.instance().evaluationDate <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> today</span></code></pre></div></div>
+</div>
+<div id="b3ed7f4e" class="cell" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1">eur_dates <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [ql.Date(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">27</span>, ql.August, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2025</span>), ql.Date(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">27</span>, ql.August, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2026</span>), ql.Date(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">27</span>, ql.August, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2027</span>)]</span>
+<span id="cb2-2">eur_dfs <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.98</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.95</span>]</span>
+<span id="cb2-3">eur_curve <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.DiscountCurve(eur_dates, eur_dfs, dc)</span>
+<span id="cb2-4">eur_curve.enableExtrapolation()</span>
+<span id="cb2-5"></span>
+<span id="cb2-6">usd_dates <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [ql.Date(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">27</span>, ql.August, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2025</span>), ql.Date(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">27</span>, ql.August, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2026</span>), ql.Date(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">27</span>, ql.August, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2027</span>)]</span>
+<span id="cb2-7">usd_dfs <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.985</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.96</span>]</span>
+<span id="cb2-8">usd_curve <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.DiscountCurve(usd_dates, usd_dfs, dc)</span>
+<span id="cb2-9">usd_curve.enableExtrapolation()</span></code></pre></div></div>
+</div>
+<p>The forex option market has a particular way of quoting options, the strike prices are quoted in terms of the Delta of the option: this means that before closing the deal, the strike level is not determined yet in absolute terms. Once the deal is closed, given the level of FX spot rate and the IV agreed upon, the strike will be set at a level yielding the BS Delta the two counterparties were dealing. This way of quoting is smart: it allows us not to worry about small movements of the underlying during the bargaining process, because the absolute strike will be defined only after the agreement on the price, so that the trader is sure to trade an option with given features in terms of exposures both to the underlying asset and to the implied volatility.</p>
+<p>The most liquid FX optios are usually the 25-<img src="https://latex.codecogs.com/png.latex?%5CDelta"> calls and put and the ATM calls and puts, thus those are going to be our basic hedging instruments and the strikes that we are going to refer to for the exotic in our book.</p>
+<p>Here is an example on how FX volatility are quoted:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?10%5CDelta%20p"></th>
+<th style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?25%5CDelta%20p"></th>
+<th style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?35%5CDelta%20p"></th>
+<th style="text-align: left;">ATM</th>
+<th style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?35%5CDelta%20c"></th>
+<th style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?25%5CDelta%20c"></th>
+<th style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?10%5CDelta%20c"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>1W</strong></td>
+<td style="text-align: left;">11.96%</td>
+<td style="text-align: left;">11.69%</td>
+<td style="text-align: left;">11.67%</td>
+<td style="text-align: left;">11.75%</td>
+<td style="text-align: left;">11.94%</td>
+<td style="text-align: left;">12.19%</td>
+<td style="text-align: left;">12.93%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>2W</strong></td>
+<td style="text-align: left;">11.81%</td>
+<td style="text-align: left;">11.54%</td>
+<td style="text-align: left;">11.52%</td>
+<td style="text-align: left;">11.60%</td>
+<td style="text-align: left;">11.79%</td>
+<td style="text-align: left;">12.04%</td>
+<td style="text-align: left;">12.78%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>1M</strong></td>
+<td style="text-align: left;">11.60%</td>
+<td style="text-align: left;">11.39%</td>
+<td style="text-align: left;">11.39%</td>
+<td style="text-align: left;">11.50%</td>
+<td style="text-align: left;">11.72%</td>
+<td style="text-align: left;">11.99%</td>
+<td style="text-align: left;">12.77%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>2M</strong></td>
+<td style="text-align: left;">11.43%</td>
+<td style="text-align: left;">11.16%</td>
+<td style="text-align: left;">11.15%</td>
+<td style="text-align: left;">11.25%</td>
+<td style="text-align: left;">11.48%</td>
+<td style="text-align: left;">11.76%</td>
+<td style="text-align: left;">12.60%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>3M</strong></td>
+<td style="text-align: left;">11.22%</td>
+<td style="text-align: left;">10.92%</td>
+<td style="text-align: left;">10.90%</td>
+<td style="text-align: left;">11.00%</td>
+<td style="text-align: left;">11.23%</td>
+<td style="text-align: left;">11.52%</td>
+<td style="text-align: left;">12.39%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>6M</strong></td>
+<td style="text-align: left;">11.12%</td>
+<td style="text-align: left;">10.78%</td>
+<td style="text-align: left;">10.76%</td>
+<td style="text-align: left;">10.87%</td>
+<td style="text-align: left;">11.12%</td>
+<td style="text-align: left;">11.43%</td>
+<td style="text-align: left;">12.39%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>9M</strong></td>
+<td style="text-align: left;">11.04%</td>
+<td style="text-align: left;">10.72%</td>
+<td style="text-align: left;">10.71%</td>
+<td style="text-align: left;">10.83%</td>
+<td style="text-align: left;">11.09%</td>
+<td style="text-align: left;">11.41%</td>
+<td style="text-align: left;">12.39%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>1Y</strong></td>
+<td style="text-align: left;">11.00%</td>
+<td style="text-align: left;">10.69%</td>
+<td style="text-align: left;">10.68%</td>
+<td style="text-align: left;">10.80%</td>
+<td style="text-align: left;">11.06%</td>
+<td style="text-align: left;">11.39%</td>
+<td style="text-align: left;">12.38%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>2Y</strong></td>
+<td style="text-align: left;">11.02%</td>
+<td style="text-align: left;">10.63%</td>
+<td style="text-align: left;">10.60%</td>
+<td style="text-align: left;">10.70%</td>
+<td style="text-align: left;">10.94%</td>
+<td style="text-align: left;">11.28%</td>
+<td style="text-align: left;">12.34%</td>
+</tr>
+</tbody>
+</table>
+<p>To get the strike from the Delta-Vol quote QuantLib comes in handy with a <code>BlackDeltaCalculator</code> that from a given delta (and option type, discount factor, spot value, and delta-vol quote value) it returns the strike associated with it.</p>
+<div id="0a5a4f4f" class="cell" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1">call_barrier_factory <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> FxBarrierOptionFactory(spot_handle, ql.Option.Call)</span>
+<span id="cb3-2">put_barrier_factory <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> FxBarrierOptionFactory(spot_handle, ql.Option.Put)</span>
+<span id="cb3-3">put_vanilla_factory <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> FxVanillaOptionFactory(spot_handle, expiration_date, ql.Option.Put)</span>
+<span id="cb3-4">call_vanilla_factory <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> FxVanillaOptionFactory(spot_handle, expiration_date, ql.Option.Call)</span>
+<span id="cb3-5">delta_call_calc <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.BlackDeltaCalculator(</span>
+<span id="cb3-6">    ql.Option.Call, </span>
+<span id="cb3-7">    ql.DeltaVolQuote.Spot, </span>
+<span id="cb3-8">    EUR_USD, </span>
+<span id="cb3-9">    eur_curve.discount(expiration_time), </span>
+<span id="cb3-10">    usd_curve.discount(expiration_time), </span>
+<span id="cb3-11">    np.sqrt(black_vol.blackVariance(expiration_time, EUR_USD)))</span>
+<span id="cb3-12">delta_put_calc <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.BlackDeltaCalculator(</span>
+<span id="cb3-13">    ql.Option.Put, </span>
+<span id="cb3-14">    ql.DeltaVolQuote.Spot, </span>
+<span id="cb3-15">    EUR_USD, </span>
+<span id="cb3-16">    eur_curve.discount(expiration_time), </span>
+<span id="cb3-17">    usd_curve.discount(expiration_time), </span>
+<span id="cb3-18">    np.sqrt(black_vol.blackVariance(expiration_time, EUR_USD)))</span>
+<span id="cb3-19"></span>
+<span id="cb3-20"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Get the strikes equivalent for the 0.25 delta for call and put options</span></span>
+<span id="cb3-21">d25_call_strike <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> delta_call_calc.strikeFromDelta(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.25</span>)</span>
+<span id="cb3-22">d25_put_strike <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> delta_put_calc.strikeFromDelta(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.25</span>)</span>
+<span id="cb3-23">atm_strike <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> delta_call_calc.atmStrike(ql.DeltaVolQuote.AtmDeltaNeutral)</span></code></pre></div></div>
+</div>
+<p>The model that extends the Black-Scholes model when dealing with FX options is the Garman-Kohlhagen model, whose dynamics have been defined above. Thus we need to create an instance of the Garman-Kohlhagen process in order to price FX options.</p>
+<p>For the sake of simplicity we assume that all the options on the book have the same expiration, and again since we are under the Garman-Kohlhagen model the vol curve is flat, thus the vol across the different strikes is the same (unrealistic assumption). Here’s how the trader book is composed of:</p>
+<p>1st Barrier</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%20%20%20%20%5Ctext%7BOption%20type%7D%20&amp;=%20%5Ctext%7BCall%7D%20%5C%5C%0A%20%20%20%20%5Ctext%7BNotional%7D%20&amp;=%20%5C$1000000%20%5C%5C%0A%20%20%20%20%5Ctext%7BBarrier%7D%20&amp;=%201.30%20%5C%5C%0A%20%20%20%20%5Ctext%7BStrike%7D%20&amp;=%2025%5CDelta%20c%20%5C%5C%0A%20%20%20%20%5Ctext%7BBarrier%20Type%7D%20&amp;=%20%5Ctext%7BUp%20and%20Out%7D%0A%5Cend%7Balign*%7D%0A"></p>
+<div id="c96a95dd" class="cell" data-execution_count="9">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Barrier 1</span></span>
+<span id="cb4-2">notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1_000_000</span></span>
+<span id="cb4-3">barrier <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.30</span></span>
+<span id="cb4-4">barrier_type <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.Barrier.UpOut</span>
+<span id="cb4-5">exercise <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.EuropeanExercise(expiration_date)</span>
+<span id="cb4-6"></span>
+<span id="cb4-7">barrier_25d_130b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> call_barrier_factory.get_option(d25_call_strike, exercise, barrier, barrier_type)</span>
+<span id="cb4-8">barrier_1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> BarrierPosition(barrier_25d_130b, notional, NullInstrument())</span></code></pre></div></div>
+</div>
+<p>2nd Barrier</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%20%20%20%20%5Ctext%7BOption%20type%7D%20&amp;=%20%5Ctext%7BCall%7D%20%5C%5C%0A%20%20%20%20%5Ctext%7BNotional%7D%20&amp;=%20%5C$2000000%20%5C%5C%0A%20%20%20%20%5Ctext%7BBarrier%7D%20&amp;=%201.08%20%5C%5C%0A%20%20%20%20%5Ctext%7BStrike%7D%20&amp;=%2025%5CDelta%20c%20%5C%5C%0A%20%20%20%20%5Ctext%7BBarrier%20Type%7D%20&amp;=%20%5Ctext%7BDown%20and%20Out%7D%0A%5Cend%7Balign*%7D%0A"></p>
+<div id="68f232a0" class="cell" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Barrier 2</span></span>
+<span id="cb5-2">notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2_000_000</span></span>
+<span id="cb5-3">barrier <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.08</span></span>
+<span id="cb5-4">barrier_type <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.Barrier.DownOut</span>
+<span id="cb5-5">exercise <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.EuropeanExercise(expiration_date)</span>
+<span id="cb5-6"></span>
+<span id="cb5-7">barrier_25d_108b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> call_barrier_factory.get_option(d25_call_strike, exercise, barrier, barrier_type)</span>
+<span id="cb5-8">barrier_2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> BarrierPosition(barrier_25d_108b, notional, NullInstrument())</span></code></pre></div></div>
+</div>
+<p>3rd Barrier</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%20%20%20%20%5Ctext%7BOption%20type%7D%20&amp;=%20%5Ctext%7BCall%7D%20%5C%5C%0A%20%20%20%20%5Ctext%7BNotional%7D%20&amp;=%20%5C$1000000%20%5C%5C%0A%20%20%20%20%5Ctext%7BBarrier%7D%20&amp;=%201.20%20%5C%5C%0A%20%20%20%20%5Ctext%7BStrike%7D%20&amp;=%2025%5CDelta%20c%20%5C%5C%0A%20%20%20%20%5Ctext%7BBarrier%20Type%7D%20&amp;=%20%5Ctext%7BUp%20and%20In%7D%0A%5Cend%7Balign*%7D%0A"></p>
+<div id="047d8639" class="cell" data-execution_count="11">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Barrier 3</span></span>
+<span id="cb6-2">notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1_000_000</span></span>
+<span id="cb6-3">barrier <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.20</span></span>
+<span id="cb6-4">barrier_type <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.Barrier.UpIn</span>
+<span id="cb6-5">exercise <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.EuropeanExercise(expiration_date)</span>
+<span id="cb6-6"></span>
+<span id="cb6-7">barrier_25d_120b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> call_barrier_factory.get_option(d25_call_strike, exercise, barrier, barrier_type)</span>
+<span id="cb6-8">backup_vanilla <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> call_vanilla_factory.get_option(d25_call_strike)</span>
+<span id="cb6-9">FxVanillaOptionFactory.assign_analyitcal_price_engine(backup_vanilla, process)</span>
+<span id="cb6-10">barrier_3 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> BarrierPosition(barrier_25d_120b, notional, backup_vanilla)</span></code></pre></div></div>
+</div>
+<p>4th Barrier</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%20%20%20%20%5Ctext%7BOption%20type%7D%20&amp;=%20%5Ctext%7BPut%7D%20%5C%5C%0A%20%20%20%20%5Ctext%7BNotional%7D%20&amp;=%20%5C$1000000%20%5C%5C%0A%20%20%20%20%5Ctext%7BBarrier%7D%20&amp;=%201.05%20%5C%5C%0A%20%20%20%20%5Ctext%7BStrike%7D%20&amp;=%2025%5CDelta%20p%20%5C%5C%0A%20%20%20%20%5Ctext%7BBarrier%20Type%7D%20&amp;=%20%5Ctext%7BDown%20and%20Out%7D%0A%5Cend%7Balign*%7D%0A"></p>
+<div id="f4ab3929" class="cell" data-execution_count="12">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Barrier 4</span></span>
+<span id="cb7-2">notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1_000_000</span></span>
+<span id="cb7-3">barrier <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.05</span></span>
+<span id="cb7-4">barrier_type <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.Barrier.DownOut</span>
+<span id="cb7-5">exercise <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.EuropeanExercise(expiration_date)</span>
+<span id="cb7-6"></span>
+<span id="cb7-7">barrier_25d_105b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> put_barrier_factory.get_option(d25_put_strike, exercise, barrier, barrier_type)</span>
+<span id="cb7-8">barrier_4 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> BarrierPosition(barrier_25d_105b, notional, NullInstrument())</span></code></pre></div></div>
+</div>
+<p>5th Barrier</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%20%20%20%20%5Ctext%7BOption%20type%7D%20&amp;=%20%5Ctext%7BPut%7D%20%5C%5C%0A%20%20%20%20%5Ctext%7BNotional%7D%20&amp;=%20%5C$1000000%20%5C%5C%0A%20%20%20%20%5Ctext%7BBarrier%7D%20&amp;=%201.25%20%5C%5C%0A%20%20%20%20%5Ctext%7BStrike%7D%20&amp;=%2025%5CDelta%20p%20%5C%5C%0A%20%20%20%20%5Ctext%7BBarrier%20Type%7D%20&amp;=%20%5Ctext%7BUp%20and%20Out%7D%0A%5Cend%7Balign*%7D%0A"></p>
+<div id="0594cefb" class="cell" data-execution_count="13">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Barrier 5</span></span>
+<span id="cb8-2">notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2_000_000</span></span>
+<span id="cb8-3">barrier <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.25</span></span>
+<span id="cb8-4">barrier_type <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.Barrier.UpOut</span>
+<span id="cb8-5">exercise <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ql.EuropeanExercise(expiration_date)</span>
+<span id="cb8-6"></span>
+<span id="cb8-7">barrier_25d_105b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> put_barrier_factory.get_option(d25_put_strike, exercise, barrier, barrier_type)</span>
+<span id="cb8-8">barrier_5 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> BarrierPosition(barrier_25d_105b, notional, NullInstrument())</span></code></pre></div></div>
+</div>
+<div id="758ac5d5" class="cell" data-execution_count="14">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1">book: List[BarrierPosition] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [barrier_1, barrier_2, barrier_3, barrier_4, barrier_5]</span>
+<span id="cb9-2"></span>
+<span id="cb9-3"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> ins <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book:</span>
+<span id="cb9-4">    FxBarrierOptionFactory.assign_analyitcal_price_engine(ins.instrument, process)</span></code></pre></div></div>
+</div>
+<p>Thus the premium of the options will be the following</p>
+<div id="f6f5d071" class="cell" data-execution_count="15">
+<div class="cell-output cell-output-display" data-execution_count="15">
+<pre><code>[309.09996820797926,
+ 36387.852679406504,
+ 18342.987983359482,
+ 2064.118402600054,
+ 25897.462236607375]</code></pre>
+</div>
+</div>
+<p>Since the <code>AnalyticBarrierEngine</code> in QuantLib doesn’t provide greek calculation functionalities, the simplest method that we can use to calculate the greeks numerically is by using the finite difference method. Let’s the define the basic central differences formulas below, and then specialize them using a partial function application to get the greeks of interest.</p>
+<p>First order Finite Difference:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Af'(x)%20=%20%5Cfrac%7Bf(x%20+%20h)%20-%20f(x%20-%20h)%7D%7B2%20%5Ccdot%20h%7D%0A"></p>
+<p>Second order Finite Difference:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Af''(x)%20=%20%5Cfrac%7Bf(x%20+%20h)%20-%202f(x)%20+%20f(x%20-%20h)%7D%7Bh%5E2%7D%0A"></p>
+<p>Cross partial derivative:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Af_%7Bxy%7D(x,%20y)%20=%20%5Cfrac%7Bf(x%20+%20h,%20y%20+%20k)%20-%20f(x%20+h,%20y%20-%20k)%20-%20f(x%20-%20h,%20y%20+%20k)%20+%20f(x%20-%20h,%20y%20-%20k)%7D%7B4hk%7D%0A"></p>
+<div id="b64528da" class="cell" data-execution_count="16">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> central_diff(instrument: ql.Instrument, h: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>, quote: ql.SimpleQuote) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>:</span>
+<span id="cb11-2">    u0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> quote.value()</span>
+<span id="cb11-3">    quote.setValue(u0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> h)</span>
+<span id="cb11-4">    P_Plus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> instrument.NPV()</span>
+<span id="cb11-5">    quote.setValue(u0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> h)</span>
+<span id="cb11-6">    P_Minus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> instrument.NPV()</span>
+<span id="cb11-7"></span>
+<span id="cb11-8">    quote.setValue(u0)</span>
+<span id="cb11-9">    </span>
+<span id="cb11-10">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> (P_Plus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> P_Minus) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> h)</span>
+<span id="cb11-11"></span>
+<span id="cb11-12"></span>
+<span id="cb11-13"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> central_diff_2nd(instrument: ql.Instrument, h: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>, quote: ql.SimpleQuote) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>:</span>
+<span id="cb11-14">    u0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> quote.value()</span>
+<span id="cb11-15">    P <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> instrument.NPV()</span>
+<span id="cb11-16">    quote.setValue(u0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> h)</span>
+<span id="cb11-17">    P_Plus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> instrument.NPV()</span>
+<span id="cb11-18">    quote.setValue(u0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> h)</span>
+<span id="cb11-19">    P_Minus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> instrument.NPV()</span>
+<span id="cb11-20"></span>
+<span id="cb11-21">    quote.setValue(u0)</span>
+<span id="cb11-22">    </span>
+<span id="cb11-23">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> (P_Plus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>P <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> P_Minus) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> h)</span>
+<span id="cb11-24"></span>
+<span id="cb11-25"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> cross_central_diff(instrument: ql.Instrument, h: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>, k: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>, quote_1: ql.SimpleQuote, quote_2: ql.SimpleQuote) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>:</span>
+<span id="cb11-26">    u1_0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> quote_1.value()</span>
+<span id="cb11-27">    u2_0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> quote_2.value()</span>
+<span id="cb11-28">    </span>
+<span id="cb11-29">    quote_1.setValue(u1_0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> h)</span>
+<span id="cb11-30">    quote_2.setValue(u1_0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> k)</span>
+<span id="cb11-31">    P_Plus_Plus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> instrument.NPV()</span>
+<span id="cb11-32"></span>
+<span id="cb11-33">    quote_1.setValue(u1_0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> h)</span>
+<span id="cb11-34">    quote_2.setValue(u1_0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> k)</span>
+<span id="cb11-35">    P_Plus_Minus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> instrument.NPV()</span>
+<span id="cb11-36"></span>
+<span id="cb11-37">    quote_1.setValue(u1_0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> h)</span>
+<span id="cb11-38">    quote_2.setValue(u1_0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> k)</span>
+<span id="cb11-39">    P_Minus_Plus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> instrument.NPV()</span>
+<span id="cb11-40"></span>
+<span id="cb11-41">    quote_1.setValue(u1_0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> h)</span>
+<span id="cb11-42">    quote_2.setValue(u1_0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> k)</span>
+<span id="cb11-43">    P_Minus_Minus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> instrument.NPV()</span>
+<span id="cb11-44"></span>
+<span id="cb11-45">    quote_1.setValue(u1_0)</span>
+<span id="cb11-46">    quote_2.setValue(u2_0)</span>
+<span id="cb11-47">    </span>
+<span id="cb11-48">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> (P_Plus_Plus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> P_Plus_Minus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> P_Minus_Plus <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> P_Minus_Minus) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> k)</span></code></pre></div></div>
+</div>
+<p>From that we can easily define the greeks functions:</p>
+<div id="5caadf3a" class="cell" data-execution_count="17">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1">delta <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> partial(central_diff, quote<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_quote)</span>
+<span id="cb12-2">vega <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> partial(central_diff, quote<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_quote)</span>
+<span id="cb12-3">gamma <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> partial(central_diff_2nd, quote<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_quote)</span>
+<span id="cb12-4">volga <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> partial(central_diff_2nd, quote<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_quote)</span>
+<span id="cb12-5">vanna <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> partial(cross_central_diff, quote_1<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_quote, quote_2<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_quote)</span></code></pre></div></div>
+</div>
+</section>
+<section id="hedging-the-book" class="level2">
+<h2 class="anchored" data-anchor-id="hedging-the-book">Hedging the book</h2>
+<p>Now that we have set up the trader portfolio, we need to find the optimal hedge for that portfolio that is going to minimize the sensitivities that we want not be exposed to. Usually a trader sitting in a exotic desk will not just keep low exposure to the classical greeks like <img src="https://latex.codecogs.com/png.latex?%5CDelta">, <img src="https://latex.codecogs.com/png.latex?%5CGamma"> and <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BV%7D">, but also in some higher order Greeks live DVegaDvol (a.k.a. <img src="https://latex.codecogs.com/png.latex?Volga">) and the DVegaDSpot (a.k.a. <img src="https://latex.codecogs.com/png.latex?Vanna">).</p>
+<p>This need comes from the fact that in case of exotics (especially for barrier and binaries) the “barrier” risks needs to be hedged: as spot moves closer to the barrier, vega can spike, that’s vanna risk.</p>
+<p>The most common way to hedge those greeks in the FX option market is by using simple structure that can be obtained by <img src="https://latex.codecogs.com/png.latex?25%20%5CDelta"> calls and puts and ATM calls and puts. Here’s the basic structures that will compose our hedging portfolio:</p>
+<ul>
+<li>Spot: to oviously to hedge the <img src="https://latex.codecogs.com/png.latex?%5CDelta"></li>
+<li>ATM straddles: involves buying an ATM vanilla call and ATM vanilla put, this structure provides positive gamma and positive vega</li>
+<li>RR (Risks reversals): involves buying an <img src="https://latex.codecogs.com/png.latex?25%20%5CDelta"> vanilla call and sell a <img src="https://latex.codecogs.com/png.latex?25%20%5CDelta"> vanilla put, provides a strong vanna exposure (becuase calls and puts respond differently as spot moves)</li>
+<li>Butterflies: involves buying an <img src="https://latex.codecogs.com/png.latex?25%20%5CDelta"> vanilla call and sell a <img src="https://latex.codecogs.com/png.latex?25%20%5CDelta"> vanilla put and selling twice a straddle, provides a strong volga exposure.</li>
+</ul>
+<section id="hedge-methodology" class="level3">
+<h3 class="anchored" data-anchor-id="hedge-methodology">Hedge methodology</h3>
+<p>The way we are going to find the optimal weights of our hedging portfolio is by using the classical <em>parameter hedging</em> methodology. Which mathematically means to set up a linear system where:</p>
+<p>The exposure vector is:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmathbf%7BE%7D%20=%20%5Cbegin%7Bbmatrix%7D%20%5CDelta%20%5C%5C%20%5CGamma%20%5C%5C%20%5Ctext%7BVega%7D%20%5C%5C%20%5Ctext%7BVanna%7D%20%5C%5C%20%5Ctext%7BVolga%7D%20%5Cend%7Bbmatrix%7D.%0A"></p>
+<p>which represent the total exposure of our portfolio (the weighted sum of each instrument greek in our exotic portfolio). For each hedge instrument <img src="https://latex.codecogs.com/png.latex?j"> (spot, ATM straddle, RR, BF), compute its greek vector <img src="https://latex.codecogs.com/png.latex?%5Cmathbf%7Bh%7D_j">. Form the hedge matrix:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AH%20=%20%5Cbegin%7Bbmatrix%7D%20%5Cmathbf%7Bh%7D_1%20&amp;%20%5Cmathbf%7Bh%7D_2%20&amp;%20%5Cdots%20&amp;%20%5Cmathbf%7Bh%7D_n%20%5Cend%7Bbmatrix%7D.%0A"></p>
+<p>Then solve for weights <img src="https://latex.codecogs.com/png.latex?%5Cmathbf%7Bx%7D"> (position sizes):</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AH%20%5Cmathbf%7Bx%7D%20-%20E%20%20%5Capprox%200.%0A"></p>
+<p>In our case the exposure vector is bigger than the hedging vector <img src="https://latex.codecogs.com/png.latex?x">, since we only 4 instruments and 5 greeks to hedge. We end up with a linear system with 4 variables and 5 equations, thus there is not an exact solution, but we can find a solution that minimized the sum of residual squares.</p>
+<p>When we want to calculate the greeks of our portfolio, we want to do it in meaningful way, thus this requires to us to set the shift operator in a way that makes sense to measure the specific risk of our porfolio. The two main ways that industry professional do that is by using 1% of the spot change and 1% vol change.</p>
+<div id="59dc8705" class="cell" data-execution_count="19">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1">spot_change <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> spot_quote.value() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb13-2">vol_change <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb13-3"></span>
+<span id="cb13-4">delta_book <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>([pos.sensitivity(delta, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book])</span>
+<span id="cb13-5">vega_book <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>([pos.sensitivity(vega, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book])</span>
+<span id="cb13-6">volga_book <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>([pos.sensitivity(volga, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book])</span>
+<span id="cb13-7">gamma_book <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>([pos.sensitivity(gamma, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book])</span>
+<span id="cb13-8">vanna_book <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>([pos.sensitivity(vanna, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change, k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book])</span></code></pre></div></div>
+</div>
+<p>The raw Greek exposition for our book is then the following:</p>
+<div id="252a9ff7" class="cell" data-execution_count="20">
+<div class="cell-output cell-output-stdout">
+<pre><code>Book Delta exposure: 371644.134787602
+Book Gamma exposure: 13330632.102691187
+Book Vega exposure: 1183872.580309415
+Book Volga exposure: 380633.56067277736
+Book Vanna exposure: 190025.47439962075</code></pre>
+</div>
+</div>
+<p>In FX, Greeks can be confusing, because they depend on the quotation of the currency pair as well as the currency in which they are calculated. Furthermore, premium can be included or excluded, smile-effect can be included or not included, and numerical approximations may further add to the confusion.</p>
+<p>What traders use in real life are a “modified version” of the plain greeks:</p>
+<ul>
+<li><p>The plain <img src="https://latex.codecogs.com/png.latex?%5CDelta"> of a forex option gives the amount of Foreing currency a trader would have to buy in the spot-market to delta-hedge a sold-option. To get the amount of dollars to buy those EURs (in our case) we need to multiply the delta by the current spot value.</p></li>
+<li><p>Traders’ <img src="https://latex.codecogs.com/png.latex?%5CGamma">: where the spot in the finite diff method is varied by 0.5% and then multiplied by 1%, since traders consider the change of delta as spot changes relatively by 1%.</p></li>
+</ul>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5CGamma%5E%7Btr%7D_t%20=%20%5CGamma_t%20%5Cfrac%7BS_t%7D%7B100%7D%0A"></p>
+<ul>
+<li>Traders’ <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BV%7D">: A trader will typically consider vega as the change of the USD or EUR value of a derivative contract (or a book of derivatives) assuming a 1% absolute/constant change in volatility.</li>
+</ul>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BV(%5Csigma%20+%200.5%5C%25)%20-%20V(%5Csigma%20-%200.5%5C%25)%7D%7B1%5C%25%7D%20%5Ccdot%201%5C%25%0A"></p>
+<div id="e26f2cbc" class="cell" data-execution_count="21">
+<div class="cell-output cell-output-stdout">
+<pre><code>Book Delta exposure: $438540.0790493703
+Book Gamma exposure: $157301.458811756
+Book Vega exposure: $11838.72580309415
+Book Volga exposure: $3806.3356067277737
+Book Vanna exposure: $2242.300597915525</code></pre>
+</div>
+</div>
+<p>As you might guess the exposition is negative since we are on the sell-side of the trade, thus we need to buy the hedging structures to hedge ourselves from those greeks.</p>
+<p>Our exposure vector <img src="https://latex.codecogs.com/png.latex?E%20=%20%5B%20%5CDelta,%20%5CGamma,%20%5Cmathcal%7BV%7D,%20Volga,%20Vanna%20%5D"> is:</p>
+<div id="ab5775f6" class="cell" data-execution_count="22">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Greek exposure vector</span></span>
+<span id="cb16-2">E <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([delta_book, gamma_book, vega_book, volga_book, vanna_book])</span>
+<span id="cb16-3">E</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="22">
+<pre><code>array([  371644.1347876 , 13330632.10269119,  1183872.58030942,
+         380633.56067278,   190025.47439962])</code></pre>
+</div>
+</div>
+<p>For each of the base instrument (Spot, ATM call, ATM put, <img src="https://latex.codecogs.com/png.latex?25%5CDelta"> call and <img src="https://latex.codecogs.com/png.latex?25%5CDelta"> put) let’s calculate the basic greeks.</p>
+<div id="fa03820a" class="cell" data-execution_count="23">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># hedge_matrix</span></span>
+<span id="cb18-2">base_notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.float64(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1_000_000</span>)</span>
+<span id="cb18-3">spot_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span>
+<span id="cb18-4">atm_call_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([</span>
+<span id="cb18-5">    delta(atm_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb18-6">    gamma(atm_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb18-7">    vega(atm_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-8">    volga(atm_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-9">    vanna(atm_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change, k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-10">]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span>
+<span id="cb18-11">atm_put_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([</span>
+<span id="cb18-12">    delta(atm_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb18-13">    gamma(atm_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb18-14">    vega(atm_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-15">    volga(atm_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-16">    vanna(atm_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change, k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-17">]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span>
+<span id="cb18-18">delta25_call_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([</span>
+<span id="cb18-19">    delta(delta25_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb18-20">    gamma(delta25_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb18-21">    vega(delta25_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-22">    volga(delta25_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-23">    vanna(delta25_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change, k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-24">]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span>
+<span id="cb18-25">delta25_put_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([</span>
+<span id="cb18-26">    delta(delta25_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb18-27">    gamma(delta25_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb18-28">    vega(delta25_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-29">    volga(delta25_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-30">    vanna(delta25_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change, k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb18-31">]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span></code></pre></div></div>
+</div>
+<p>From there let’s calculate the greek exposure for the strcutures that we are going to use in out hedging portfolio, and then create our Hedge Matrix:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AH%20=%20%5Cleft%5B%0A%5Cbegin%7Barray%7D%7Bc%7Ccccc%7D%0A%20%20%20%20&amp;%20%5Ctext%7BSpot%7D%20&amp;%20%5Ctext%7BStraddle%7D%20&amp;%20%5Ctext%7BRR%7D%20&amp;%20%5Ctext%7BButterfly%7D%20%5C%5C%0A%20%20%20%20%5Chline%0A%20%20%20%20%5CDelta%20%20%20&amp;%20h_%7B11%7D%20&amp;%20h_%7B12%7D%20&amp;%20h_%7B13%7D%20&amp;%20h_%7B14%7D%20%5C%5C%0A%20%20%20%20%5CGamma%20%20%20&amp;%20h_%7B21%7D%20&amp;%20h_%7B22%7D%20&amp;%20h_%7B23%7D%20&amp;%20h_%7B24%7D%20%5C%5C%0A%20%20%20%20%5Ctext%7BVega%7D%20%20%20&amp;%20h_%7B31%7D%20&amp;%20h_%7B32%7D%20&amp;%20h_%7B33%7D%20&amp;%20h_%7B34%7D%20%5C%5C%0A%20%20%20%20%5Ctext%7BVolga%7D%20%20&amp;%20h_%7B41%7D%20&amp;%20h_%7B42%7D%20&amp;%20h_%7B43%7D%20&amp;%20h_%7B44%7D%20%5C%5C%0A%20%20%20%20%5Ctext%7BVanna%7D%20%20&amp;%20h_%7B51%7D%20&amp;%20h_%7B52%7D%20&amp;%20h_%7B53%7D%20&amp;%20h_%7B54%7D%20%5C%5C%0A%5Cend%7Barray%7D%0A%5Cright%5D%0A"></p>
+<div id="c88abce5" class="cell" data-execution_count="24">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Let's create the straddle, RR, Butterfly from the base vanilla options</span></span>
+<span id="cb19-2">atm_straddle <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> atm_call_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> atm_put_greeks</span>
+<span id="cb19-3">rr <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> delta25_call_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> delta25_put_greeks</span>
+<span id="cb19-4">butterfly <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> delta25_call_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> delta25_put_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> atm_straddle</span>
+<span id="cb19-5"></span>
+<span id="cb19-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Hedge Matrix</span></span>
+<span id="cb19-7">H <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.stack([spot_greeks, atm_straddle, rr, butterfly]).T</span></code></pre></div></div>
+</div>
+<p>Since our system have more equations than variables, we must use a least square method (provided by <code>np.linalg.lstsq</code>) to solve it. Least square method minimizes the Euclidian 2-norm $ || E - Hx || $.</p>
+<div id="decf7a68" class="cell" data-execution_count="25">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1">x, _, _, _ <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.linalg.lstsq(H, E)</span></code></pre></div></div>
+</div>
+<p>Now that we have a solution let’s see what’s our remaining exposure to each of the choosen hedged greeks. We do that by</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AH%20x%20-%20E%0A"></p>
+<div id="d9d73e2f" class="cell" data-execution_count="26">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1">residual_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (H <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">@</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> E).tolist()</span>
+<span id="cb21-2"></span>
+<span id="cb21-3"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Residual Delta exposure: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>residual_greeks[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> spot_quote<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb21-4"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Residual Gamma exposure: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>residual_greeks[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> spot_quote<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb21-5"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Residual Vega exposure: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>residual_greeks[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb21-6"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Residual Volga exposure: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>residual_greeks[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb21-7"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Residual Vanna exposure: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>residual_greeks[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> spot_quote<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Residual Delta exposure: $-2.6100315153598783e-09
+Residual Gamma exposure: $-13.422826034608855
+Residual Vega exposure: $126.72764540341916
+Residual Volga exposure: $0.016476123058237136
+Residual Vanna exposure: $-0.09291220850032404</code></pre>
+</div>
+</div>
+<p>Another crucial thing when hedging a book is, of course, to measure the P&amp;L from one rebalancing period to another. Let’s then calculate the value of the various components of our hedging portfolio. We have the the P&amp;L from time <img src="https://latex.codecogs.com/png.latex?t"> is calculated as:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AP%5C&amp;L_%7Bt%20%5Crightarrow%20t%20+%201%7D%20=%20(V_%7Bt%20+%201%7D%5E%7Bbook%7D%20+%20V_%7Bt%20+%201%7D%5E%7Bhedge%7D%20+%20C_%7Bt%20+%201%7D)%20-%20(V_%7Bt%7D%5E%7Bbook%7D%20+%20V_%7Bt%7D%5E%7Bhedge%7D%20+%20C_%7Bt%7D)%0A"></p>
+<p>where:</p>
+<ul>
+<li><img src="https://latex.codecogs.com/png.latex?V_%7Bt%7D%5E%7Bbook%7D"> is the value of our book at time <img src="https://latex.codecogs.com/png.latex?t">, which is the sum of the premiums that we’ve been collected</li>
+<li><img src="https://latex.codecogs.com/png.latex?V_%7Bt%7D%5E%7Bhedge%7D"> is the value of the hedging portfolio, the sum of the premium of the structures that we have bought to hedge our from the various sensistivies</li>
+<li><img src="https://latex.codecogs.com/png.latex?C_t"> the cash/bank account of our portfolio which includes financing of cash and trade cashflows</li>
+</ul>
+<p>A shorter way to express the P&amp;L, is just by considering the variation of the value of the book + the variation of the value of the hedges + cost of borrowing + interest accrued:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AP%5C&amp;L_%7Bt%20%5Crightarrow%20t%20+%201%7D%20=%20%5Cdelta%20V_%7Bt,%20t%20+%201%7D%5E%7Bbook%7D%20+%20%5Cdelta%20V_%7Bt,%20t%20+%201%7D%5E%7Bhedge%7D%20+%20%5Ctext%7Bcost%20of%20borrowing%7D%20+%20%5Ctext%7Binterest%20accrued%7D%0A"></p>
+<p>since the rebalancing of the hedges of the bank account happend at the end of trading day.</p>
+<div id="e6d102d2" class="cell" data-execution_count="27">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1">spot_premium_eur <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> x[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span>
+<span id="cb23-2">spot_premium_usd <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> x[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> spot_quote.value()</span>
+<span id="cb23-3">atm_straddle_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> atm_call.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> atm_put.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]</span>
+<span id="cb23-4">rr_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> delta25_call.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> delta25_put.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]</span>
+<span id="cb23-5">butterfly_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (delta25_call.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> delta25_put.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (atm_call.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> atm_put.NPV())) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span></code></pre></div></div>
+</div>
+<p>The usd borrowed (which is the sum of the premiums of or hedging instrument) is crucial for use to calculate the interest accrued for borrowing the usd dollars to buy the hedging structures.</p>
+<div id="2eaa7f70" class="cell" data-execution_count="28">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1">hedging_str_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> atm_straddle_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> rr_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> butterfly_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> spot_premium_usd</span>
+<span id="cb24-2">hedging_str_premium</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="28">
+<pre><code>np.float64(4182631.052146415)</code></pre>
+</div>
+</div>
+<p>Thus the value of the cash at time <img src="https://latex.codecogs.com/png.latex?t%20=%200"> is the equal to all the cash that we’ve borrowed to build the hedging structures plus the premiums that we’ve been collected from selling the exotics options</p>
+<div id="2cf87165" class="cell" data-execution_count="29">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1">bank_account_value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> hedging_str_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(premiums)</span>
+<span id="cb26-2">bank_account_value</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="29">
+<pre><code>np.float64(-4099629.5308762337)</code></pre>
+</div>
+</div>
+<div id="590656fa" class="cell" data-execution_count="30">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1">port_value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [hedging_str_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(premiums) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> bank_account_value]</span>
+<span id="cb28-2"></span>
+<span id="cb28-3"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"The portfolio value at time t = 0 is </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>port_value[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>The portfolio value at time t = 0 is 0.0</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="changes-of-the-hedging-portfolio-with-the-changes-of-the-market-conditions" class="level2">
+<h2 class="anchored" data-anchor-id="changes-of-the-hedging-portfolio-with-the-changes-of-the-market-conditions">Changes of the hedging portfolio with the changes of the market conditions</h2>
+<p>Now that we have setup our hedging portfolio see verify how its will change as the spot and vol change. Let’s assume that in a week period the spot went go down by 300 pips and the vol went up by <img src="https://latex.codecogs.com/png.latex?1%5C%25">.</p>
+<div id="62eda722" class="cell" data-execution_count="31">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1">spot_quote.setValue(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.15</span>)</span>
+<span id="cb30-2">vol_quote.setValue(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.14</span>)</span>
+<span id="cb30-3">ql.Settings.instance().evaluationDate <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> today <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> ql.Period(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>, ql.Days)</span></code></pre></div></div>
+</div>
+<div id="ee56248c" class="cell" data-execution_count="32">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1">new_premiums <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [pos.NPV() <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book]</span></code></pre></div></div>
+</div>
+<p>With the new spot and vol let’s recalculate the book exposure</p>
+<div id="b1fde571" class="cell" data-execution_count="33">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1">delta_book <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>([pos.sensitivity(delta, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book])</span>
+<span id="cb32-2">vega_book <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>([pos.sensitivity(vega, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book])</span>
+<span id="cb32-3">volga_book <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>([pos.sensitivity(volga, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book])</span>
+<span id="cb32-4">gamma_book <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>([pos.sensitivity(gamma, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book])</span>
+<span id="cb32-5">vanna_book <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>([pos.sensitivity(vanna, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change, k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> pos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> book])</span>
+<span id="cb32-6"></span>
+<span id="cb32-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># new Exposure vector</span></span>
+<span id="cb32-8">E <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([delta_book, gamma_book, vega_book, volga_book, vanna_book])</span></code></pre></div></div>
+</div>
+<div id="4e20ab91" class="cell" data-execution_count="34">
+<div class="cell-output cell-output-stdout">
+<pre><code>Book Delta exposure: $16549.207988699432
+Book Gamma exposure: $138778.80052508457
+Book Vega exposure: $11096.72161278602
+Book Volga exposure: $560.5276947207037
+Book Vanna exposure: $2416.5207043533637</code></pre>
+</div>
+</div>
+<p>As before let’s recalculate the greeks for the basic trading instruments, and then combine to obtain the greeks for the structures used in the hedging portfolio.</p>
+<div id="ee751248" class="cell" data-execution_count="35">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># hedge_matrix</span></span>
+<span id="cb34-2">base_notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.float64(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1_000_000</span>)</span>
+<span id="cb34-3">spot_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span>
+<span id="cb34-4">atm_call_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([</span>
+<span id="cb34-5">    delta(atm_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb34-6">    gamma(atm_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb34-7">    vega(atm_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-8">    volga(atm_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-9">    vanna(atm_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change, k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-10">]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span>
+<span id="cb34-11">atm_put_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([</span>
+<span id="cb34-12">    delta(atm_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb34-13">    gamma(atm_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb34-14">    vega(atm_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-15">    volga(atm_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-16">    vanna(atm_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change, k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-17">]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span>
+<span id="cb34-18">delta25_call_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([</span>
+<span id="cb34-19">    delta(delta25_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb34-20">    gamma(delta25_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb34-21">    vega(delta25_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-22">    volga(delta25_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-23">    vanna(delta25_call, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change, k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-24">]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span>
+<span id="cb34-25">delta25_put_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([</span>
+<span id="cb34-26">    delta(delta25_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb34-27">    gamma(delta25_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change),</span>
+<span id="cb34-28">    vega(delta25_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-29">    volga(delta25_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-30">    vanna(delta25_put, h<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>spot_change, k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>vol_change),</span>
+<span id="cb34-31">]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span></code></pre></div></div>
+</div>
+<div id="46e467dc" class="cell" data-execution_count="36">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Let's create the straddle, RR, Butterfly from the base vanilla options</span></span>
+<span id="cb35-2">atm_straddle <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> atm_call_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> atm_put_greeks</span>
+<span id="cb35-3">rr <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> delta25_call_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> delta25_put_greeks</span>
+<span id="cb35-4">butterfly <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> delta25_call_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> delta25_put_greeks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> atm_straddle</span>
+<span id="cb35-5"></span>
+<span id="cb35-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Hedge Matrix</span></span>
+<span id="cb35-7">H <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.stack([spot_greeks, atm_straddle, rr, butterfly]).T</span></code></pre></div></div>
+</div>
+<p>The esposure of our hedging portfolio is now is:</p>
+<div id="14151e72" class="cell" data-execution_count="37">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># New exposure of the hedging portfolio</span></span>
+<span id="cb36-2">exposure <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (H <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">@</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> E).tolist()</span>
+<span id="cb36-3"></span>
+<span id="cb36-4"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Residual Delta exposure: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>exposure[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> spot_quote<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb36-5"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Residual Gamma exposure: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>exposure[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> spot_quote<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb36-6"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Residual Vega exposure: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>exposure[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb36-7"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Residual Volga exposure: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>exposure[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb36-8"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Residual Vanna exposure: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>exposure[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> spot_quote<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Residual Delta exposure: $-348789.7260608019
+Residual Gamma exposure: $73758.42210270112
+Residual Vega exposure: $5879.026689021433
+Residual Volga exposure: $-54024.14332019365
+Residual Vanna exposure: $117.87655605534354</code></pre>
+</div>
+</div>
+<p>To calculate the P&amp;L from time t to t+1 we need to calculate the change of the value of the hedging portfolio as well</p>
+<div id="69f656f5" class="cell" data-execution_count="38">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1">spot_premium_usd <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> x[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> spot_quote.value()</span>
+<span id="cb38-2">atm_straddle_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> atm_call.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> atm_put.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]</span>
+<span id="cb38-3">rr_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> delta25_call.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> delta25_put.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]</span>
+<span id="cb38-4">butterfly_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (delta25_call.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> delta25_put.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (atm_call.NPV() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> atm_put.NPV())) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> base_notional</span>
+<span id="cb38-5">new_hedging_str_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> atm_straddle_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> rr_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> butterfly_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> spot_premium_usd</span></code></pre></div></div>
+</div>
+<div id="40ea160f" class="cell" data-execution_count="39">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1">dt <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> dc.yearFraction(today, today <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> ql.Period(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>, ql.Days))</span>
+<span id="cb39-2">usd_interest_cost <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> hedging_str_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> r_d <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> dt</span>
+<span id="cb39-3">eur_interest_accr <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> spot_premium_eur <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> r_f <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> dt</span>
+<span id="cb39-4">new_total_portfolio_value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> new_hedging_str_premium <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(new_premiums) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> bank_account_value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> usd_interest_cost <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> eur_interest_accr <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> spot_quote.value()</span>
+<span id="cb39-5"></span>
+<span id="cb39-6"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Portfolio value at time t = 1 is: $</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>new_total_portfolio_value<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Portfolio value at time t = 1 is: $-8014.640804257949</code></pre>
+</div>
+</div>
+<div id="a612426b" class="cell" data-execution_count="41">
+<div class="cell-output cell-output-stdout">
+<pre><code>The P&amp;L after a week is: $-8014.640804257949</code></pre>
+</div>
+</div>
+<p>If we want to reduce our exposure and bring it back to a lower one, we need to recalculate the optiomal hedging weight for our hedging portfolio as before:</p>
+<div id="e49576b6" class="cell" data-execution_count="42">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1">x_new, _, _, _ <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.linalg.lstsq(H, E)</span></code></pre></div></div>
+</div>
+<p>This how our hedging portfolio has to change:</p>
+<div id="095f0634" class="cell" data-execution_count="43">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1">x_new <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> x</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="43">
+<pre><code>array([-0.33252725,  3.27195222,  0.99407244,  3.52132318])</code></pre>
+</div>
+</div>
+<p>The residual greek exposure after the rebalancing is:</p>
+<div id="18e5c5c8" class="cell" data-execution_count="44">
+<div class="cell-output cell-output-stdout">
+<pre><code>Residual Delta exposure: $-4.2255123844370243e-10
+Residual Gamma exposure: $1.7120357189066706
+Residual Vega exposure: $-16.21605768425856
+Residual Volga exposure: $-0.0021280367333383764
+Residual Vanna exposure: $0.014062687186218682</code></pre>
+</div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>Quantitative finance</category>
+  <category>Hedging</category>
+  <category>Exotic options</category>
+  <guid>https://your-website-url.example.com/posts/post-with-code/exotic-book.html</guid>
+  <pubDate>Mon, 08 Mar 2027 23:00:00 GMT</pubDate>
+  <media:content url="https://your-website-url.example.com/posts/post-with-code/barrier_price_surface.png" medium="image" type="image/png" height="142" width="144"/>
+</item>
+</channel>
+</rss>
