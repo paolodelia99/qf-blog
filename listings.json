@@ -2,6 +2,8 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/post-with-code/exotic-book-local-vol.html",
+      "/posts/post-with-code/exotic-book-vanna-volga.html",
       "/posts/post-with-code/exotic-book.html"
     ]
   }
